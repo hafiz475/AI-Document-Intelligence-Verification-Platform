@@ -1,0 +1,87 @@
+name: assureai
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assureai}
+      POSTGRES_USER: ${POSTGRES_USER:-assureai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-for-non-local-use}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    environment:
+      ASSUREAI_ENVIRONMENT: ${ASSUREAI_ENVIRONMENT:-development}
+      ASSUREAI_LOG_LEVEL: ${ASSUREAI_LOG_LEVEL:-INFO}
+      ASSUREAI_CORS_ORIGINS: '${ASSUREAI_CORS_ORIGINS:-["http://localhost:5173"]}'
+      ASSUREAI_DATABASE_URL: ${ASSUREAI_DATABASE_URL:-postgresql+psycopg://assureai:change-me-for-non-local-use@postgres:5432/assureai}
+      ASSUREAI_REDIS_URL: ${ASSUREAI_REDIS_URL:-redis://redis:6379/0}
+      ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-disabled}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      ASSUREAI_ENVIRONMENT: ${ASSUREAI_ENVIRONMENT:-development}
+      ASSUREAI_DATABASE_URL: ${ASSUREAI_DATABASE_URL:-postgresql+psycopg://assureai:change-me-for-non-local-use@postgres:5432/assureai}
+      ASSUREAI_REDIS_URL: ${ASSUREAI_REDIS_URL:-redis://redis:6379/0}
+      ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-disabled}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
