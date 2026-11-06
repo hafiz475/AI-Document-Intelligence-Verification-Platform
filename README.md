@@ -150,6 +150,27 @@ Infrastructure:
     docker compose config --quiet
     docker compose build
 
+## Single-VM demo deployment
+
+The production Compose file serves the built React application through Nginx, proxies
+same-origin API requests, keeps PostgreSQL and Redis off host ports, limits container
+memory, and runs one document worker process for a small VM.
+
+On a Linux host with Docker Engine and the Compose plugin installed:
+
+    cp .env.production.example .env.production
+    # Replace every placeholder with a unique secret and the host's public origin.
+    docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+    docker compose --env-file .env.production -f docker-compose.prod.yml ps
+
+Only HTTP port 80 is published by this demo configuration. Put TLS termination in
+front of the web service before handling sensitive or real customer documents. Back up
+the `postgres-data` and `document-data` volumes; deleting them permanently removes
+project metadata and uploaded documents.
+
+For the complete Azure Portal and VM procedure used by the live showcase, see the
+[Azure single-VM demo deployment guide](docs/deployment/azure-vm-demo.md).
+
 ## Security and limitations
 
 Files are checked using bounded reads, allowed extensions, declared types, signatures or

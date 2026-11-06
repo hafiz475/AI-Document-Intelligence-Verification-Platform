@@ -1,0 +1,109 @@
+name: assureai-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assureai}
+      POSTGRES_USER: ${POSTGRES_USER:-assureai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 128mb
+    mem_limit: 768m
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: runtime
+      network: host
+    restart: unless-stopped
+    environment:
+      ASSUREAI_ENVIRONMENT: production
+      ASSUREAI_LOG_LEVEL: INFO
+      ASSUREAI_CORS_ORIGINS: '["${ASSUREAI_PUBLIC_ORIGIN:?set ASSUREAI_PUBLIC_ORIGIN}"]'
+      ASSUREAI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-assureai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-assureai}
+      ASSUREAI_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      ASSUREAI_STORAGE_PATH: /data/documents
+      ASSUREAI_AI_PROVIDER: disabled
+    volumes:
+      - document-data:/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      network: host
+    restart: unless-stopped
+    command: ["dramatiq", "--processes", "1", "--threads", "2", "assureai_worker.tasks"]
+    environment:
+      ASSUREAI_ENVIRONMENT: production
+      ASSUREAI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-assureai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-assureai}
+      ASSUREAI_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      ASSUREAI_STORAGE_PATH: /data/documents
+      ASSUREAI_AI_PROVIDER: disabled
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - document-data:/data/documents
+    mem_limit: 1g
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: production
+      network: host
+      args:
+        VITE_API_BASE_URL: /
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+
+volumes:
+  postgres-data:
+  redis-data:
+  document-data:
