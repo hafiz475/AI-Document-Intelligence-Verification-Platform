@@ -17,6 +17,10 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "service": "api",
         }
+        for field in ("request_id", "project_id", "document_id"):
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
         return json.dumps(payload, default=str)

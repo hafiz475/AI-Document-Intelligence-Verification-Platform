@@ -1,0 +1,45 @@
+SYNTHETIC DEMO DATA — NOT A REAL INSPECTION RECORD
+
+WIND TURBINE PERIODIC INSPECTION REPORT
+
+Asset ID: WT-DEMO-014
+Manufacturer: Northstar Renewable Systems (fictional)
+Model: NSR-4.2-Demo
+Inspection date: 2026-10-18
+Location: Wind Farm Alpha, North Array, Turbine 14 (fictional)
+
+Inspection scope
+Visual inspection of external blade surfaces, nacelle equipment, gearbox observation
+points, accessible fasteners, lubrication indicators, and supervisory vibration trends.
+
+Inspection findings
+The tower and accessible bolted connections showed no visible deformation. Protective
+coating was intact except for two small areas of superficial abrasion near the lower
+access platform. No active corrosion was observed.
+
+Blade condition
+Blade A showed a 35 mm superficial leading-edge coating chip approximately 8.2 m from
+the root reference. Blades B and C showed normal surface wear for the fictional service
+interval. No laminate exposure or lightning receptor damage was observed.
+
+Gearbox condition
+Oil level was within the marked operating range. The sight glass was clear. No leakage
+was visible at accessible seals. The fictional laboratory oil sample is pending and is
+not included in this demo report.
+
+Vibration observation
+The reviewed synthetic trend remained below the fictional alert threshold. A small
+increase at the high-speed shaft frequency was observed but was not sufficient to
+classify as a defect. Continue trend monitoring.
+
+Recommendations
+1. Repair the Blade A coating chip during the next suitable low-wind maintenance window.
+2. Reinspect the two tower coating abrasions within 90 days.
+3. Review the pending fictional oil analysis before returning to the normal annual cycle.
+4. Continue monthly vibration trending.
+
+Inspector: Morgan Lee (fictional)
+Next inspection date: 2027-04-18
+
+This document is synthetic, contains no proprietary information, and is provided only
+to demonstrate AssureAI Milestone 1 document ingestion.

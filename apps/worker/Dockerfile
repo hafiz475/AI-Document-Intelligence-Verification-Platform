@@ -8,7 +8,7 @@ WORKDIR /app
 
 COPY apps/api/pyproject.toml ./
 COPY apps/api/src ./src
-RUN pip install --upgrade pip && pip install ".[worker]"
+RUN pip install --upgrade pip && pip install .
 
 COPY apps/worker/src ./worker-src
 ENV PYTHONPATH=/app/worker-src

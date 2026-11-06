@@ -41,9 +41,12 @@ services:
       ASSUREAI_CORS_ORIGINS: '${ASSUREAI_CORS_ORIGINS:-["http://localhost:5173"]}'
       ASSUREAI_DATABASE_URL: ${ASSUREAI_DATABASE_URL:-postgresql+psycopg://assureai:change-me-for-non-local-use@postgres:5432/assureai}
       ASSUREAI_REDIS_URL: ${ASSUREAI_REDIS_URL:-redis://redis:6379/0}
+      ASSUREAI_STORAGE_PATH: /data/documents
       ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-disabled}
     ports:
       - "8000:8000"
+    volumes:
+      - document-data:/data/documents
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,12 +66,15 @@ services:
       ASSUREAI_ENVIRONMENT: ${ASSUREAI_ENVIRONMENT:-development}
       ASSUREAI_DATABASE_URL: ${ASSUREAI_DATABASE_URL:-postgresql+psycopg://assureai:change-me-for-non-local-use@postgres:5432/assureai}
       ASSUREAI_REDIS_URL: ${ASSUREAI_REDIS_URL:-redis://redis:6379/0}
+      ASSUREAI_STORAGE_PATH: /data/documents
       ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-disabled}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - document-data:/data/documents
 
   web:
     build:
@@ -85,3 +91,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  document-data:

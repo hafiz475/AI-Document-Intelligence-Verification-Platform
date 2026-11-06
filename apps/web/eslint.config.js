@@ -7,7 +7,10 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist", "coverage"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
+    ],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2022,
@@ -23,7 +26,10 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.flat.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
     },
   },
 );

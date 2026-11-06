@@ -8,10 +8,12 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY src ./src
+COPY alembic.ini ./
+COPY migrations ./migrations
 RUN pip install --upgrade pip && pip install .
 
 EXPOSE 8000
-CMD ["sh", "-c", "exec uvicorn assureai_api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn assureai_api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
 FROM runtime AS test
 

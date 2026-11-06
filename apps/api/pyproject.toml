@@ -9,9 +9,13 @@ description = "AssureAI HTTP API and shared application package"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14,<2.0",
+  "dramatiq[redis]>=1.17,<3.0",
   "fastapi>=0.115,<1.0",
+  "pypdf>=5.1,<6.0",
   "pydantic-settings>=2.7,<3.0",
   "psycopg[binary]>=3.2,<4.0",
+  "python-docx>=1.1,<2.0",
+  "python-multipart>=0.0.18,<1.0",
   "sqlalchemy>=2.0,<3.0",
   "uvicorn[standard]>=0.34,<1.0",
 ]
@@ -25,7 +29,7 @@ dev = [
   "ruff>=0.9,<1.0",
 ]
 worker = [
-  "dramatiq[redis]>=1.17,<3.0",
+  # Kept as a compatibility extra; worker dependencies are runtime dependencies.
 ]
 
 [tool.hatch.build.targets.wheel]

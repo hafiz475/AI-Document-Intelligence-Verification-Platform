@@ -1,3 +1,12 @@
 # Architecture decision records
 
 ADRs capture decisions that are costly or confusing to rediscover. Use sequential four-digit identifiers, include context and tradeoffs, and do not rewrite an accepted decision to hide history; supersede it with a new ADR.
+
+- [0001: Monorepo modular monolith](0001-monorepo-modular-monolith.md)
+- [0002: FastAPI backend](0002-fastapi-backend.md)
+- [0003: PostgreSQL and pgvector](0003-postgresql-pgvector.md)
+- [0004: Dramatiq background jobs](0004-dramatiq-background-jobs.md)
+- [0005: AI provider abstraction](0005-ai-provider-abstraction.md)
+- [0006: Document storage abstraction](0006-document-storage-abstraction.md)
+- [0007: Project-scoped content deduplication](0007-project-scoped-content-deduplication.md)
+- [0008: Deterministic document chunking](0008-deterministic-document-chunking.md)

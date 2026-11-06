@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     database_url: str | None = None
     redis_url: str | None = None
+    storage_path: str = "storage/documents"
+    max_upload_bytes: int = 20 * 1024 * 1024
     ai_provider: Literal["disabled", "openai"] = "disabled"
 
 

@@ -1,87 +1,129 @@
 # AssureAI architecture
 
-## Goals
+## Current system
 
-AssureAI is organized as a modular monolith with separately deployable web, API, and worker processes. This keeps the initial system understandable while preserving hard boundaries around background processing, persistence, retrieval, and AI providers.
+AssureAI remains a modular monolith with separately runnable web, API, and worker
+processes. Milestone 1 adds the document-ingestion application and persistence modules
+without introducing AI, retrieval, or embedding behavior.
 
-## System context
-
-```mermaid
+~~~mermaid
 flowchart TB
     Reviewer --> Web[React / TypeScript]
-    Web -->|JSON over HTTP| API[FastAPI]
-    API --> DB[(PostgreSQL + pgvector)]
+    Web -->|Project and document HTTP API| API[FastAPI]
+    API --> DB[(PostgreSQL)]
     API --> Queue[(Redis broker)]
+    API --> Files[(Private document storage)]
     Queue --> Worker[Dramatiq worker]
+    Worker --> Files
     Worker --> DB
-    Worker --> Files[(Document storage)]
-    Worker --> AI[AI provider adapter]
-    API --> AI
-```
+~~~
 
-Document storage is represented as a boundary: local development can use a mounted volume, while a later deployment may use object storage without exposing storage paths to clients.
+PostgreSQL still uses the pgvector image because later milestones plan vector retrieval,
+but Milestone 1 creates no vector columns and performs no similarity search.
 
-## Repository boundaries
+## Module boundaries
 
-- `apps/web`: browser application, reusable UI, API client, and query hooks.
-- `apps/api`: HTTP composition root plus future application, domain, persistence, and provider-adapter modules.
-- `apps/worker`: worker process configuration. It imports application services from the installable API package rather than duplicating domain logic.
-- `docs/adr`: durable architectural decisions and their tradeoffs.
-- `sample-data`: synthetic/public non-sensitive inputs only (introduced with the vertical slice).
+- apps/web: typed API clients, TanStack Query hooks, reusable states, and project/document
+  screens.
+- apps/api: HTTP routes, application services, SQLAlchemy models, Alembic migrations,
+  extraction, chunking, storage protocol, and queue actor.
+- apps/worker: the Dramatiq discovery entry point; processing logic stays in the shared
+  API application package.
+- docs/adr: durable decisions and tradeoffs.
+- sample-data: synthetic, non-sensitive demonstration inputs.
 
-The Python package will evolve toward these inward dependencies:
+The dependency direction is:
 
-```text
-HTTP routes / worker actors
-          |
-application services
-          |
-domain models and protocols
-          ^
-persistence, storage, and AI adapters
-```
+    HTTP routes / Dramatiq actor
+                |
+        application services
+                |
+      models and storage protocol
+                ^
+    SQLAlchemy / local storage adapters
 
-## Intended document flow
+HTTP handlers validate transport concerns and map domain errors. Services own
+transactions and workflow orchestration. The worker does not duplicate extraction logic.
 
-1. The API authenticates the caller, authorizes the project, validates the upload, hashes its content, and persists metadata.
-2. The API places an idempotent job identifier on Redis and returns a processing status.
-3. A worker extracts and normalizes text, preserves page/section provenance, chunks content, and persists state transactionally.
-4. Later stages create embeddings and schema-validated extracted fields. Every trusted field retains evidence and review status.
-5. Retrieval always applies project scope before similarity search. Generated citations can reference only retrieved, stored chunks.
-6. Audit and evaluation records make consequential operations reproducible and reviewable.
+## Ingestion flow
 
-Steps 1–3 are Milestone 1; AI extraction and RAG are later milestones.
+1. The API verifies the project exists.
+2. It reads at most the configured limit plus one byte.
+3. Validation checks the display filename, allowed extension, declared MIME type, and
+   PDF signature, DOCX container structure, or UTF-8 TXT content.
+4. SHA-256 is computed and checked within the project.
+5. A generated storage key and UPLOADED metadata row are created.
+6. The private file is saved, status becomes QUEUED, and the transaction commits.
+7. A Dramatiq message is sent to Redis and HTTP 202 is returned.
+8. The worker sets PROCESSING and extracts normalized segments.
+9. Existing chunks are deleted and deterministic replacements are inserted in one
+   transaction.
+10. Metadata and READY are committed. Any exception instead commits FAILED with a safe
+    error message and remains visible to Dramatiq retry handling.
 
-## Domain direction
+## Persistence
 
-The full conceptual model includes users, projects, documents and versions, chunks, jobs, extracted fields, verification rules/results, conversations, questions/answers/citations, prompt versions, evaluation runs/cases, and audit events. Only projects, document metadata/versions, extraction jobs, and chunks should be implemented for Milestone 1 unless a concrete need proves otherwise.
+The Milestone 1 migration creates:
 
-## Trust boundaries
+- projects
+- documents
+- document_chunks
+- the document_status enum
 
-- Browser input, uploaded files, extracted document text, and AI output are untrusted.
-- Project identity is server-derived and enforced in every repository/retrieval operation.
-- AI output is advisory until schema validation and, where required, human review succeed.
-- Secrets never cross the API/worker boundary into frontend artifacts.
-- File names are display metadata, not storage paths.
+Documents have a foreign key to projects with ON DELETE CASCADE. Chunks have a foreign
+key to documents with ON DELETE CASCADE. Project ownership therefore controls the full
+ingestion aggregate. This behavior is intentional: deleting a project in a future API
+must explicitly confirm removal of metadata and chunks, and the application must also
+delete associated stored objects.
 
-## Reliability and observability
+The unique constraints on project/content hash and document/chunk index enforce
+deduplication and retry idempotency at the database boundary.
 
-- `/health` is process liveness; `/ready` is dependency readiness.
-- JSON logs include service, environment, severity, timestamp, and request ID when available.
-- Background work is retryable and will use explicit idempotency/status transitions.
-- AI calls will capture provider/model, prompt version, latency, usage, and errors without logging secrets or sensitive document bodies.
-- OpenTelemetry is deferred until real cross-service traces exist.
+## Project isolation
 
-## Deployment
+Document detail and chunk requests query by project_id and document_id together. A valid
+document identifier presented through another project returns 404. Duplicate checks are
+also project-scoped. Storage keys never cross the HTTP boundary.
 
-Docker Compose provides the local topology. Production may independently scale the static web app, stateless API, and worker processes; it requires managed secrets, durable object storage, backups, TLS termination, migration execution, and monitoring that are intentionally outside Milestone 0.
+Authentication and user ownership are deferred, so Milestone 1 isolation protects
+project boundaries within the current unauthenticated application but is not a complete
+multi-tenant authorization system.
+
+## Text preparation
+
+PDF extraction retains one-based page numbers. DOCX extraction retains paragraph order
+and section labels. TXT uses UTF-8 with optional BOM. Normalization standardizes line
+endings, removes control noise, collapses horizontal whitespace, and preserves paragraph
+breaks.
+
+Chunks target 1,000 characters and respect paragraph boundaries. PDF pages do not mix.
+A 150-character overlap is applied only when splitting one oversized paragraph. This is
+deterministic preparation, not embedding-aware chunking.
+
+## Reliability and operations
+
+- /health reports only process liveness.
+- /ready checks the database and Redis when configured.
+- API startup applies Alembic migrations in the container.
+- API and worker share a named local-storage volume.
+- JSON lifecycle logs contain project/document identifiers but not extracted content.
+- Chunk replacement is transactional and safe to repeat.
+- Queue submission failure is recorded as FAILED and returned as service unavailable.
+
+Local filesystem storage is suitable for Compose and a single host. A production
+multi-host deployment requires an object-storage adapter, managed secrets, TLS,
+backups, monitoring, and an explicit migration job.
+
+## Deferred work
+
+No authentication, embeddings, vector search, LLM extraction, RAG, chat, citations,
+verification, prompt engineering, or evaluation exists in Milestone 1.
 
 ## Decisions
 
-See the accepted records in [`docs/adr`](docs/adr):
+See [docs/adr](docs/adr), especially:
 
-- ADR 0001: monorepo and modular monolith
-- ADR 0002: FastAPI API
-- ADR 0003: PostgreSQL with pgvector
 - ADR 0004: Dramatiq with Redis
-- ADR 0005: provider-independent AI interfaces
+- ADR 0006: document storage abstraction
+- ADR 0007: project-scoped content deduplication
+- ADR 0008: deterministic document chunking
