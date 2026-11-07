@@ -1,0 +1,80 @@
+name: Deploy to Azure VM
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: assureai-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Validate deployment secrets
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_DEPLOY_KEY: ${{ secrets.AZURE_VM_DEPLOY_KEY }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        run: |
+          test -n "$AZURE_VM_HOST"
+          test -n "$AZURE_VM_USER"
+          test -n "$AZURE_VM_DEPLOY_KEY"
+          test -n "$AZURE_VM_KNOWN_HOSTS"
+
+      - name: Configure SSH
+        env:
+          AZURE_VM_DEPLOY_KEY: ${{ secrets.AZURE_VM_DEPLOY_KEY }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AZURE_VM_DEPLOY_KEY" > ~/.ssh/assureai_deploy
+          chmod 600 ~/.ssh/assureai_deploy
+          printf '%s\n' "$AZURE_VM_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Stream release to Azure VM
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          DEPLOY_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          printf '%s\n' "$DEPLOY_REVISION" > .deploy-revision
+          tar --exclude=.git -czf - . |
+            ssh -i ~/.ssh/assureai_deploy -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$AZURE_VM_USER@$AZURE_VM_HOST"
+
+      - name: Verify public readiness
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+        run: |
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 10 "http://$AZURE_VM_HOST/ready"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/assureai_deploy

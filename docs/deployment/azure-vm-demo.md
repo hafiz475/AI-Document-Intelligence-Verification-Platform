@@ -44,25 +44,25 @@ In the Azure Portal:
 
 The deployment used these values:
 
-| Setting | Value |
-| --- | --- |
-| Subscription | Azure subscription 1 |
-| Resource group | rg-assureai-prod |
-| VM name | vm-assureai-prod-01 |
-| Region | Central India |
-| Availability | No infrastructure redundancy required |
-| Security type | Trusted launch virtual machines |
-| Secure boot | Enabled |
-| vTPM | Enabled |
-| Image | Ubuntu Server 24.04 LTS, x64 Gen2 |
-| Architecture | x64 |
-| Size | Standard B2ls v2, 2 vCPU, 4 GiB RAM |
-| Authentication | SSH public key |
-| Username | azureuser |
-| SSH key source | Generate new key pair |
-| SSH key type | Ed25519 |
-| Key pair name | assureai-prod-key |
-| Azure Spot | Disabled |
+| Setting        | Value                                 |
+| -------------- | ------------------------------------- |
+| Subscription   | Azure subscription 1                  |
+| Resource group | rg-assureai-prod                      |
+| VM name        | vm-assureai-prod-01                   |
+| Region         | Central India                         |
+| Availability   | No infrastructure redundancy required |
+| Security type  | Trusted launch virtual machines       |
+| Secure boot    | Enabled                               |
+| vTPM           | Enabled                               |
+| Image          | Ubuntu Server 24.04 LTS, x64 Gen2     |
+| Architecture   | x64                                   |
+| Size           | Standard B2ls v2, 2 vCPU, 4 GiB RAM   |
+| Authentication | SSH public key                        |
+| Username       | azureuser                             |
+| SSH key source | Generate new key pair                 |
+| SSH key type   | Ed25519                               |
+| Key pair name  | assureai-prod-key                     |
+| Azure Spot     | Disabled                              |
 
 The portal showed USD 0.0448/hour for compute when this VM was created on
 November 6, 2026. Azure prices and available sizes change; always use the price shown
@@ -75,15 +75,15 @@ never share or commit it.
 
 Use:
 
-| Setting | Value |
-| --- | --- |
-| OS disk size | 64 GiB |
-| OS disk type | Standard SSD LRS |
-| Delete OS disk with VM | No |
-| Key management | Platform-managed key |
-| Ultra Disk | Disabled |
-| Data disks | None |
-| Ephemeral OS disk | None |
+| Setting                | Value                |
+| ---------------------- | -------------------- |
+| OS disk size           | 64 GiB               |
+| OS disk type           | Standard SSD LRS     |
+| Delete OS disk with VM | No                   |
+| Key management         | Platform-managed key |
+| Ultra Disk             | Disabled             |
+| Data disks             | None                 |
+| Ephemeral OS disk      | None                 |
 
 Keeping the OS disk when deleting the VM helps protect against an accidental VM
 deletion, but the retained disk continues to incur charges until it is removed.
@@ -102,11 +102,11 @@ The portal created:
 Select **Advanced** for the NIC network security group. Remove any default SSH rule
 whose source is **Any**, then create:
 
-| Priority | Name | Source | Protocol | Port | Action |
-| ---: | --- | --- | --- | ---: | --- |
-| 101 | Allow-SSH-MyIP | Your current public IPv4 with /32 | TCP | 22 | Allow |
-| 110 | Allow-HTTP | Any | TCP | 80 | Allow |
-| 120 | Allow-HTTPS | Any | TCP | 443 | Allow |
+| Priority | Name           | Source                            | Protocol | Port | Action |
+| -------: | -------------- | --------------------------------- | -------- | ---: | ------ |
+|      101 | Allow-SSH-MyIP | Your current public IPv4 with /32 | TCP      |   22 | Allow  |
+|      110 | Allow-HTTP     | Any                               | TCP      |   80 | Allow  |
+|      120 | Allow-HTTPS    | Any                               | TCP      |  443 | Allow  |
 
 Port 443 was reserved for a possible later TLS setup but is not used by this HTTP-only
 showcase. The SSH source IP used during creation was a single /32 address. If the ISP
@@ -142,10 +142,10 @@ Advanced:
 
 Tags:
 
-| Name | Value |
-| --- | --- |
+| Name        | Value    |
+| ----------- | -------- |
 | Application | AssureAI |
-| Environment | Demo |
+| Environment | Demo     |
 
 Review the configuration, create the VM, download the private key, wait for the
 deployment to complete, and open **Go to resource**. Confirm that the VM status is
@@ -234,7 +234,7 @@ normal Git clone or pull can be used:
 
     sudo install -d -o azureuser -g azureuser /opt/assureai
     git clone <repository-url> /opt/assureai
-    cd /opt/assureai
+    cd /opt/assureai/current
 
 For an existing checkout:
 
@@ -324,7 +324,35 @@ The completed deployment was also checked through the public IP:
 
 The synthetic smoke-test project is named **Deployment Verification**.
 
-## 15. Routine operations
+## 15. Automatic deployment from GitHub
+
+The Deploy to Azure VM workflow runs after the CI workflow succeeds for a push to
+main. It checks out the exact tested commit, streams a source archive over SSH, builds
+the three application images sequentially, starts Compose, and checks both internal and
+public readiness.
+
+The workflow requires these repository Actions secrets:
+
+| Secret               | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| AZURE_VM_HOST        | VM public IP or hostname                 |
+| AZURE_VM_USER        | Restricted deployment SSH user           |
+| AZURE_VM_DEPLOY_KEY  | Dedicated private Ed25519 deployment key |
+| AZURE_VM_KNOWN_HOSTS | Pinned SSH host key entry                |
+
+The corresponding public key is installed in the VM user's authorized_keys file with
+SSH restrict and command options. It can invoke only the root-owned deployment receiver
+at /usr/local/libexec/assureai-deploy; it cannot open an interactive shell, forward
+ports, or run arbitrary SSH commands.
+
+Each deployment is extracted under /opt/assureai/releases. The populated
+/opt/assureai/.env.production file and Docker named volumes remain outside releases and
+are preserved. Failed image builds leave the currently running containers unchanged.
+
+The workflow can also be run manually from **Actions > Deploy to Azure VM > Run
+workflow**.
+
+## 16. Routine operations
 
 View service state and recent logs:
 
@@ -334,10 +362,9 @@ View service state and recent logs:
     docker compose --env-file .env.production \
       -f docker-compose.prod.yml logs --tail 100
 
-Deploy a later version:
+Deploy a later version manually:
 
     cd /opt/assureai
-    git pull --ff-only origin main
     export COMPOSE_PARALLEL_LIMIT=1
     docker compose --env-file .env.production \
       -f docker-compose.prod.yml up -d --build
@@ -350,7 +377,7 @@ Stop services without deleting data:
 Do not run docker compose down with the -v option unless permanent deletion of the
 database, Redis state, and uploaded documents is intended.
 
-## 16. Current limitations
+## 17. Current limitations
 
 - No user authentication or authorization exists yet.
 - Traffic is HTTP, not HTTPS.
