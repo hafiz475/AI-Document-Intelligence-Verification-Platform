@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     storage_path: str = "storage/documents"
     max_upload_bytes: int = 20 * 1024 * 1024
-    ai_provider: Literal["disabled", "openai"] = "disabled"
+    ai_provider: Literal["disabled", "development", "openai"] = "disabled"
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-4o-mini"
 
 
 @lru_cache

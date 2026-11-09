@@ -45,6 +45,11 @@ button:disabled {
   border: 1px solid #334155;
   color: #dce7f3;
 }
+.button.danger {
+  background: transparent;
+  border: 1px solid #b91c1c;
+  color: #fecaca;
+}
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -336,6 +341,30 @@ tbody tr:hover {
   border-color: #16a34a;
   color: #bbf7d0;
 }
+.status-completed,
+.status-supported,
+.status-verified {
+  background: #052e16;
+  border-color: #16a34a;
+  color: #bbf7d0;
+}
+.status-partially_supported,
+.status-unreviewed {
+  background: #422006;
+  border-color: #d97706;
+  color: #fde68a;
+}
+.status-unsupported,
+.status-rejected {
+  background: #450a0a;
+  border-color: #dc2626;
+  color: #fecaca;
+}
+.status-corrected {
+  background: #312e81;
+  border-color: #6366f1;
+  color: #c7d2fe;
+}
 .status-failed {
   background: #450a0a;
   border-color: #dc2626;
@@ -390,6 +419,143 @@ tbody tr:hover {
   margin-bottom: 0;
   white-space: pre-wrap;
 }
+.ai-extraction {
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+.ai-extraction .section-heading {
+  align-items: center;
+}
+.latest-extraction {
+  border: 1px solid #26364a;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.run-heading,
+.extraction-field header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+.run-heading {
+  background: #0d1a2a;
+  border-bottom: 1px solid #26364a;
+  padding: 1rem 1.2rem;
+}
+.run-heading div {
+  display: grid;
+  gap: 0.25rem;
+}
+.run-heading span,
+.muted {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.extraction-fields {
+  display: grid;
+  gap: 1px;
+  background: #26364a;
+}
+.extraction-field {
+  background: #0a1625;
+  padding: 1.25rem;
+}
+.field-label {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+.field-value {
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.badge-group,
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.evidence-view {
+  background: #07111f;
+  border: 1px solid #1e293b;
+  border-radius: 0.65rem;
+  margin: 1rem 0;
+  padding: 0.75rem;
+}
+.evidence-view summary {
+  color: #67e8f9;
+  cursor: pointer;
+  font-weight: 700;
+}
+.evidence-item {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+.evidence-item code {
+  color: #64748b;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+.evidence-item blockquote {
+  border-left: 3px solid #155e75;
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 0.8rem;
+}
+.review-form {
+  border-top: 1px solid #1e293b;
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.review-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+.review-form textarea {
+  background: #07111f;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  color: #f8fafc;
+  font: inherit;
+  padding: 0.75rem;
+  resize: vertical;
+}
+.extraction-history {
+  margin-top: 1.5rem;
+}
+.extraction-history ol {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  padding: 0;
+}
+.extraction-history li {
+  align-items: center;
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  border-radius: 0.65rem;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr auto auto;
+  padding: 0.8rem 1rem;
+}
+.extraction-history time {
+  color: #64748b;
+  font-size: 0.8rem;
+}
 .sr-only {
   height: 1px;
   margin: -1px;
@@ -421,5 +587,13 @@ tbody tr:hover {
   }
   .form-actions {
     flex-direction: column-reverse;
+  }
+  .extraction-field header,
+  .run-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .extraction-history li {
+    grid-template-columns: 1fr;
   }
 }

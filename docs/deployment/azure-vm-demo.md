@@ -262,6 +262,10 @@ Create the untracked environment file directly on the VM:
 
 Never print, share, or commit the populated file.
 
+For Milestone 2 the production Compose default is
+ASSUREAI_AI_PROVIDER=development, which makes no external calls. A populated environment
+file may explicitly set the same value.
+
 ## 13. Build and start frontend and backend
 
 Validate the configuration:
@@ -292,6 +296,7 @@ The production configuration:
 - keeps PostgreSQL, Redis, and FastAPI on the private Compose network;
 - uses named volumes for PostgreSQL, Redis, and documents;
 - runs one Dramatiq worker process with two threads;
+- uses the deterministic development extraction provider unless explicitly overridden;
 - applies container memory limits appropriate for this demo VM.
 
 ## 14. Validate the live deployment
@@ -321,6 +326,12 @@ The completed deployment was also checked through the public IP:
 - <http://52.172.254.68/ready> returned API status ready.
 - A synthetic TXT document moved from QUEUED to READY.
 - The worker created one deterministic chunk for that synthetic document.
+- A Milestone 2 synthetic extraction can be run without an external credential. Confirm
+  it reaches COMPLETED, shows validated chunk evidence, and supports field review.
+
+No real OpenAI request is part of the default Azure smoke test. To opt in, set
+ASSUREAI_AI_PROVIDER=openai, ASSUREAI_OPENAI_API_KEY, and ASSUREAI_OPENAI_MODEL only in
+the VM's mode-600 environment file, then redeploy the API and worker.
 
 The synthetic smoke-test project is named **Deployment Verification**.
 
@@ -381,6 +392,7 @@ database, Redis state, and uploaded documents is intended.
 
 - No user authentication or authorization exists yet.
 - Traffic is HTTP, not HTTPS.
+- The demo AI provider is deterministic and is not a substitute for a production model.
 - PostgreSQL and uploaded documents are on one VM.
 - No automated volume backup is configured.
 - The VM is a single point of failure.

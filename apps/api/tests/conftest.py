@@ -71,20 +71,29 @@ def queued_documents() -> list[str]:
 
 
 @pytest.fixture
+def queued_extractions() -> list[str]:
+    return []
+
+
+@pytest.fixture
 def client(
     engine: Engine,
     database_url: str,
     tmp_path: Path,
     queued_documents: list[str],
+    queued_extractions: list[str],
 ) -> Iterator[TestClient]:
     settings = Settings(
         environment="test",
         database_url=database_url,
         storage_path=str(tmp_path / "documents"),
         max_upload_bytes=1024 * 1024,
+        ai_provider="development",
     )
     application = create_app(
-        settings, enqueue_document=lambda document_id: queued_documents.append(document_id)
+        settings,
+        enqueue_document=lambda document_id: queued_documents.append(document_id),
+        enqueue_extraction=lambda run_id: queued_extractions.append(run_id),
     )
     with TestClient(application) as test_client:
         yield test_client

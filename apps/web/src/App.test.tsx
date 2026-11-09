@@ -110,7 +110,7 @@ it("shows a processing state", async () => {
 });
 
 it("shows extracted chunks for a ready document", async () => {
-  mockResponses(baseDocument, {
+  mockResponses(baseDocument, [], {
     items: [
       {
         id: "chunk-1",

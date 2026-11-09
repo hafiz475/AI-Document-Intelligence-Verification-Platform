@@ -50,7 +50,9 @@ services:
       ASSUREAI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-assureai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-assureai}
       ASSUREAI_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       ASSUREAI_STORAGE_PATH: /data/documents
-      ASSUREAI_AI_PROVIDER: disabled
+      ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-development}
+      ASSUREAI_OPENAI_API_KEY: ${ASSUREAI_OPENAI_API_KEY:-}
+      ASSUREAI_OPENAI_MODEL: ${ASSUREAI_OPENAI_MODEL:-gpt-4o-mini}
     volumes:
       - document-data:/data/documents
     depends_on:
@@ -77,7 +79,9 @@ services:
       ASSUREAI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-assureai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-assureai}
       ASSUREAI_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       ASSUREAI_STORAGE_PATH: /data/documents
-      ASSUREAI_AI_PROVIDER: disabled
+      ASSUREAI_AI_PROVIDER: ${ASSUREAI_AI_PROVIDER:-development}
+      ASSUREAI_OPENAI_API_KEY: ${ASSUREAI_OPENAI_API_KEY:-}
+      ASSUREAI_OPENAI_MODEL: ${ASSUREAI_OPENAI_MODEL:-gpt-4o-mini}
     depends_on:
       postgres:
         condition: service_healthy

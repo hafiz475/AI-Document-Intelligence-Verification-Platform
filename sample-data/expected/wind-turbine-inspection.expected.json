@@ -1,0 +1,28 @@
+{
+  "schema_version": "inspection-extraction-v1",
+  "source": "sample-wind-turbine-inspection.txt",
+  "expected": {
+    "asset_id": "WT-DEMO-014",
+    "document_type": "WIND TURBINE PERIODIC INSPECTION REPORT",
+    "manufacturer": "Northstar Renewable Systems (fictional)",
+    "model": "NSR-4.2-Demo",
+    "serial_number": null,
+    "inspection_date": "2026-10-18",
+    "location": "Wind Farm Alpha, North Array, Turbine 14 (fictional)",
+    "inspection_result": null,
+    "identified_issues": [
+      "Two small areas of superficial abrasion near the lower access platform.",
+      "Blade A showed a 35 mm superficial leading-edge coating chip approximately 8.2 m from the root reference."
+    ],
+    "recommendations": [
+      "Repair the Blade A coating chip during the next suitable low-wind maintenance window.",
+      "Reinspect the two tower coating abrasions within 90 days.",
+      "Review the pending fictional oil analysis before returning to the normal annual cycle.",
+      "Continue monthly vibration trending."
+    ],
+    "inspector": "Morgan Lee (fictional)",
+    "next_inspection_date": "2027-04-18"
+  },
+  "missing_fields": ["serial_number", "inspection_result"],
+  "notes": "Synthetic gold data only. This fixture does not represent a production evaluation result."
+}

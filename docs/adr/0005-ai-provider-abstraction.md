@@ -9,7 +9,14 @@ OpenAI is the initial intended provider, but models, structured-output capabilit
 
 ## Decision
 
-Define typed application protocols for generation, structured extraction, and embeddings. Put vendor SDKs in adapters selected by backend configuration. Validate outputs against domain-owned schemas and record provider/model/prompt metadata. Offline tests use an explicitly named deterministic development adapter, never fake production responses.
+Define a typed, capability-specific protocol for structured extraction. Put vendor SDKs
+in adapters selected by backend configuration. Validate outputs against domain-owned
+schemas and record provider/model/prompt metadata. Offline tests and the public demo use
+an explicitly named deterministic development adapter, never fake production responses.
+
+Milestone 2 implements an OpenAI Responses API adapter with structured outputs and an
+offline deterministic development adapter. Embedding interfaces remain deferred until
+the retrieval milestone.
 
 ## Consequences
 

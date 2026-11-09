@@ -7,6 +7,7 @@ import {
   StatusBadge,
 } from "../../components/States";
 import { useDocument, useDocumentChunks } from "../hooks";
+import { ExtractionPanel } from "./ExtractionPanel";
 
 export function DocumentDetailPage() {
   const { projectId = "", documentId = "" } = useParams();
@@ -80,6 +81,7 @@ export function DocumentDetailPage() {
       )}
       {item.status === "READY" && (
         <div>
+          <ExtractionPanel documentId={documentId} projectId={projectId} />
           <div className="section-heading">
             <h2>Extracted chunks</h2>
             <p>{chunks.data?.total ?? 0} deterministic text chunks</p>

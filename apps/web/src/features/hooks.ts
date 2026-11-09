@@ -7,6 +7,12 @@ import {
   getDocuments,
   uploadDocument,
 } from "../api/documents";
+import {
+  createExtraction,
+  getExtractions,
+  reviewField,
+} from "../api/extractions";
+import type { FieldReview } from "../api/types";
 
 export function useProjects() {
   return useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -75,5 +81,65 @@ export function useDocumentChunks(
     queryKey: ["projects", projectId, "documents", documentId, "chunks"],
     queryFn: () => getDocumentChunks(projectId, documentId),
     enabled,
+  });
+}
+
+export function useExtractions(
+  projectId: string,
+  documentId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["projects", projectId, "documents", documentId, "extractions"],
+    queryFn: () => getExtractions(projectId, documentId),
+    enabled,
+    refetchInterval: (query) => {
+      const active = query.state.data?.some((run) =>
+        ["QUEUED", "PROCESSING"].includes(run.status),
+      );
+      return active ? 2_000 : false;
+    },
+  });
+}
+
+export function useCreateExtraction(projectId: string, documentId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => createExtraction(projectId, documentId),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: [
+          "projects",
+          projectId,
+          "documents",
+          documentId,
+          "extractions",
+        ],
+      }),
+  });
+}
+
+export function useReviewField(projectId: string, documentId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      runId,
+      fieldId,
+      review,
+    }: {
+      runId: string;
+      fieldId: string;
+      review: FieldReview;
+    }) => reviewField(projectId, documentId, runId, fieldId, review),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: [
+          "projects",
+          projectId,
+          "documents",
+          documentId,
+          "extractions",
+        ],
+      }),
   });
 }

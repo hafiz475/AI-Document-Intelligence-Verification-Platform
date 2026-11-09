@@ -3,30 +3,33 @@
 ## Current system
 
 AssureAI remains a modular monolith with separately runnable web, API, and worker
-processes. Milestone 1 adds the document-ingestion application and persistence modules
-without introducing AI, retrieval, or embedding behavior.
+processes. Milestone 2 preserves the ingestion pipeline and adds structured AI
+extraction, controlled evidence, immutable prompts, review decisions, and audit events.
 
 ~~~mermaid
 flowchart TB
     Reviewer --> Web[React / TypeScript]
-    Web -->|Project and document HTTP API| API[FastAPI]
+    Web -->|Project, document, extraction, review API| API[FastAPI]
     API --> DB[(PostgreSQL)]
     API --> Queue[(Redis broker)]
     API --> Files[(Private document storage)]
     Queue --> Worker[Dramatiq worker]
     Worker --> Files
     Worker --> DB
+    Worker --> Dev[Deterministic development provider]
+    Worker -. configured .-> OpenAI[OpenAI structured outputs]
 ~~~
 
-PostgreSQL still uses the pgvector image because later milestones plan vector retrieval,
-but Milestone 1 creates no vector columns and performs no similarity search.
+PostgreSQL still uses the pgvector image because Milestone 3 plans vector retrieval, but
+Milestone 2 creates no vector columns and performs no embedding or similarity search.
 
 ## Module boundaries
 
 - apps/web: typed API clients, TanStack Query hooks, reusable states, and project/document
   screens.
-- apps/api: HTTP routes, application services, SQLAlchemy models, Alembic migrations,
-  extraction, chunking, storage protocol, and queue actor.
+- apps/api: HTTP routes, ingestion/extraction services, provider-neutral Pydantic
+  contracts, provider adapters, evidence validation, SQLAlchemy models, migrations,
+  text extraction, chunking, storage protocol, and queue actors.
 - apps/worker: the Dramatiq discovery entry point; processing logic stays in the shared
   API application package.
 - docs/adr: durable decisions and tradeoffs.
@@ -44,6 +47,9 @@ The dependency direction is:
 
 HTTP handlers validate transport concerns and map domain errors. Services own
 transactions and workflow orchestration. The worker does not duplicate extraction logic.
+
+The AI provider protocol receives only an immutable prompt and controlled source chunks.
+Vendor response objects do not cross the adapter boundary.
 
 ## Ingestion flow
 
@@ -79,6 +85,34 @@ delete associated stored objects.
 The unique constraints on project/content hash and document/chunk index enforce
 deduplication and retry idempotency at the database boundary.
 
+The Milestone 2 migration adds:
+
+- prompt_templates and immutable prompt_versions
+- extraction_runs with provider/model/prompt/latency/token/failure metadata
+- extracted_fields with raw, normalized, corrected, review, and support state
+- extraction_evidence tied to stored document chunks
+- audit_events for extraction and field-review lifecycle changes
+
+Document and extraction statuses are deliberately separate. Historical completed runs
+are immutable; a later extraction creates a new run.
+
+## Structured extraction flow
+
+1. The API verifies project/document scope and READY status.
+2. It assigns Inspection Extraction Prompt v1, creates QUEUED, audits, and enqueues.
+3. The worker commits PROCESSING before calling the selected provider.
+4. Chunks are supplied as CHUNK_ID/PAGE/TEXT blocks.
+5. Provider JSON is validated by the Pydantic inspection schema.
+6. Chunk ownership, stored page bounds, and normalized quote inclusion are validated.
+7. Invalid references are discarded and support status is downgraded.
+8. Fields/evidence and COMPLETED metadata commit atomically.
+9. Retried completed jobs return immediately; replacement prevents duplicates.
+10. Provider/schema/runtime failures commit FAILED and a safe audit event.
+
+Review stores corrected values separately from original AI values. VERIFIED, CORRECTED,
+and REJECTED decisions are one-time in this milestone and produce audit events. Reviewer
+is null because authentication does not yet exist.
+
 ## Project isolation
 
 Document detail and chunk requests query by project_id and document_id together. A valid
@@ -106,7 +140,8 @@ deterministic preparation, not embedding-aware chunking.
 - /ready checks the database and Redis when configured.
 - API startup applies Alembic migrations in the container.
 - API and worker share a named local-storage volume.
-- JSON lifecycle logs contain project/document identifiers but not extracted content.
+- JSON lifecycle logs contain project/document/run/field identifiers but not extracted
+  content, evidence quotes, or provider keys.
 - Chunk replacement is transactional and safe to repeat.
 - Queue submission failure is recorded as FAILED and returned as service unavailable.
 
@@ -116,8 +151,9 @@ backups, monitoring, and an explicit migration job.
 
 ## Deferred work
 
-No authentication, embeddings, vector search, LLM extraction, RAG, chat, citations,
-verification, prompt engineering, or evaluation exists in Milestone 1.
+Authentication, embeddings, vector search, semantic retrieval, retrieval evaluation,
+RAG, chat, agents, general tool calling, OCR, and full extraction evaluation are not
+implemented in Milestone 2.
 
 ## Decisions
 
@@ -127,3 +163,7 @@ See [docs/adr](docs/adr), especially:
 - ADR 0006: document storage abstraction
 - ADR 0007: project-scoped content deduplication
 - ADR 0008: deterministic document chunking
+- ADR 0009: structured inspection extraction schema
+- ADR 0010: immutable prompt versioning
+- ADR 0011: controlled chunk evidence validation
+- ADR 0012: preserve original values during human review

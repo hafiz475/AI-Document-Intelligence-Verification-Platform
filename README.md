@@ -1,12 +1,12 @@
 # AssureAI
 
-AssureAI is a document intelligence foundation for traceable technical-assurance
-workflows. Milestone 1 implements reliable, project-isolated document ingestion and
-deterministic text preparation. It does not call an AI provider.
+AssureAI is a document-intelligence application for traceable technical-assurance
+workflows. Milestone 2 adds evidence-backed structured extraction and human review to
+the existing project-isolated ingestion pipeline.
 
-> **Status:** Milestone 1 document ingestion is implemented. Embeddings, vector
-> retrieval, structured LLM extraction, RAG, citations, verification, chat, and
-> evaluation remain planned.
+> **Status:** Milestones 0-2 are implemented. The Azure demo uses the deterministic
+> development provider. Embeddings, vector retrieval, RAG, chat, agents, OCR, and a
+> full evaluation framework remain planned.
 
 ## Implemented
 
@@ -23,14 +23,23 @@ deterministic text preparation. It does not call an AI provider.
 - Poll active processing from the React interface and display chunks or safe errors.
 - Scope every document and chunk lookup by both project and document identifier.
 - Apply PostgreSQL schema changes with Alembic.
+- Queue structured inspection extraction as a separate Dramatiq job and status model.
+- Select a deterministic offline or OpenAI provider through backend configuration.
+- Validate every provider response with a Pydantic v2 inspection schema before storage.
+- Persist immutable prompt versions and provider/model/latency/token metadata.
+- Validate chunk ownership, page metadata, and evidence quotes before accepting evidence.
+- Mark fields SUPPORTED, PARTIALLY_SUPPORTED, or UNSUPPORTED.
+- Preserve original AI values while reviewers verify, correct, or reject fields.
+- Persist extraction and field-review audit events without document contents.
+- Poll extraction runs, display evidence and history, and review fields in the React UI.
 
 ## Planned, not implemented
 
 - Embeddings and pgvector similarity retrieval
-- Structured LLM extraction and prompt management
-- Evidence-backed RAG, chat, and citations
-- Human verification workflows and rules
-- Evaluation datasets and run tracking
+- Semantic retrieval and retrieval evaluation
+- RAG, chat, agents, and general tool calling
+- OCR and image-only document processing
+- Full extraction/retrieval evaluation run tracking
 - Authentication and multi-user authorization
 - Production object storage
 
@@ -46,6 +55,8 @@ flowchart LR
     A --> S[(Private document storage)]
     J --> S
     J --> P
+    J --> D[Development provider]
+    J -. configured .-> O[OpenAI structured outputs]
 ~~~
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/adr](docs/adr).
@@ -54,7 +65,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/adr](docs/adr).
 
 Requirements: Docker Desktop with Compose.
 
-1. Copy .env.example to .env. The defaults are for local development only.
+1. Copy .env.example to .env. The default AI provider is deterministic, offline, and
+   intended only for development, tests, and demos.
 2. Start the stack:
 
        docker compose up --build
@@ -113,6 +125,13 @@ Document endpoints:
 - GET /api/v1/projects/{project_id}/documents/{document_id}
 - GET /api/v1/projects/{project_id}/documents/{document_id}/chunks
 
+Extraction endpoints:
+
+- POST /api/v1/projects/{project_id}/documents/{document_id}/extractions
+- GET /api/v1/projects/{project_id}/documents/{document_id}/extractions
+- GET /api/v1/projects/{project_id}/documents/{document_id}/extractions/{run_id}
+- PATCH /api/v1/projects/{project_id}/documents/{document_id}/extractions/{run_id}/fields/{field_id}/review
+
 The upload endpoint accepts multipart/form-data and returns HTTP 202 after durable
 metadata/file storage and successful queue submission. The same SHA-256 content in the
 same project returns HTTP 409 and identifies the existing document. Storage keys and
@@ -127,6 +146,24 @@ without document contents. This replacement strategy makes retries idempotent.
 Paragraphs are packed toward 1,000 characters. Separate PDF pages are never combined.
 Only a single oversized paragraph is split with approximately 150 characters of
 overlap. See [ADR 0008](docs/adr/0008-deterministic-document-chunking.md).
+
+## Structured extraction and review
+
+Extraction is allowed only for READY documents. POST creates a QUEUED ExtractionRun and
+returns HTTP 202. The worker moves it to PROCESSING, supplies controlled chunk IDs to
+the configured provider, validates the response against the Pydantic schema, validates
+evidence against stored chunks, then atomically persists fields/evidence and marks the
+run COMPLETED. Failures become FAILED with safe codes/messages.
+
+The deterministic development provider makes no network calls and is recorded as
+"development / deterministic-development-v1". To use OpenAI, configure
+ASSUREAI_AI_PROVIDER=openai, ASSUREAI_OPENAI_API_KEY, and ASSUREAI_OPENAI_MODEL only in
+backend secrets. The adapter uses structured outputs; arbitrary JSON is never directly
+persisted.
+
+Review decisions never overwrite raw_value or normalized_value. Corrections use a
+separate value, while verification/rejection/correction events retain timestamp, reason,
+and a null reviewer until authentication is implemented.
 
 ## Quality checks
 
@@ -178,9 +215,15 @@ container structure, and UTF-8 decoding. Original filenames are display metadata
 Project scope is carried through document and chunk queries. Uploaded contents and
 secrets are ignored by version control and are never logged.
 
-Milestone 1 has no authentication, malware scanning, OCR, encrypted object storage, or
-distributed storage adapter. Image-only PDFs fail cleanly when no extractable text is
-found. Local filesystem storage is intended for development and single-host operation.
+Milestone 2 has no authentication, malware scanning, OCR, encrypted object storage,
+distributed storage adapter, embeddings, retrieval, RAG, or chat. Image-only PDFs fail
+cleanly when no extractable text is found. Local filesystem storage and the deterministic
+provider are intended for development and the single-host demo.
+
+## Recommended Milestone 3
+
+Add embeddings, pgvector indexing, semantic retrieval, and retrieval evaluation. Do not
+add RAG answers until retrieval quality and project isolation are measured.
 
 ## License
 

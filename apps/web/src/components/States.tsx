@@ -1,5 +1,3 @@
-import type { DocumentStatus } from "../api/types";
-
 export function LoadingState({ label = "Loading…" }: { label?: string }) {
   return (
     <p className="state-card" role="status">
@@ -33,7 +31,7 @@ export function EmptyState({
   );
 }
 
-export function StatusBadge({ status }: { status: DocumentStatus }) {
+export function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`status status-${status.toLowerCase()}`}>{status}</span>
   );

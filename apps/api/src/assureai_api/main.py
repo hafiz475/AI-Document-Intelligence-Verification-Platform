@@ -23,6 +23,7 @@ from assureai_api.storage import LocalDocumentStorage
 def create_app(
     settings: Settings | None = None,
     enqueue_document: Callable[[str], object] | None = None,
+    enqueue_extraction: Callable[[str], object] | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -68,6 +69,11 @@ def create_app(
 
         enqueue_document = default_enqueue
     application.state.enqueue_document = enqueue_document
+    if enqueue_extraction is None:
+        from assureai_api.queue import enqueue_extraction as default_extraction_enqueue
+
+        enqueue_extraction = default_extraction_enqueue
+    application.state.enqueue_extraction = enqueue_extraction
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,

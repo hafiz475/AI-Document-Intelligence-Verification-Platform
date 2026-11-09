@@ -6,10 +6,21 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from sqlalchemy.orm import Session
 
 from assureai_api.database import get_db
+from assureai_api.extraction_services import (
+    ExtractionConflictError,
+    ExtractionUnavailableError,
+    create_extraction_run,
+    get_extraction_run,
+    list_extraction_runs,
+    review_extracted_field,
+)
 from assureai_api.schemas import (
     ChunkListResponse,
     ChunkResponse,
     DocumentResponse,
+    ExtractedFieldResponse,
+    ExtractionRunResponse,
+    FieldReviewRequest,
     ProjectCreate,
     ProjectResponse,
 )
@@ -39,6 +50,10 @@ def _project_response(project: object, document_count: int) -> ProjectResponse:
 
 def _not_found(exc: NotFoundError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+def _conflict(exc: ExtractionConflictError) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -148,3 +163,91 @@ def list_chunks_endpoint(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post(
+    "/projects/{project_id}/documents/{document_id}/extractions",
+    response_model=ExtractionRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_extraction_endpoint(
+    project_id: str,
+    document_id: str,
+    request: Request,
+    session: DbSession,
+) -> ExtractionRunResponse:
+    try:
+        run = create_extraction_run(
+            session,
+            settings=request.app.state.settings,
+            enqueue=request.app.state.enqueue_extraction,
+            project_id=project_id,
+            document_id=document_id,
+        )
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except ExtractionConflictError as exc:
+        raise _conflict(exc) from exc
+    except ExtractionUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return ExtractionRunResponse.model_validate(run)
+
+
+@router.get(
+    "/projects/{project_id}/documents/{document_id}/extractions",
+    response_model=list[ExtractionRunResponse],
+)
+def list_extractions_endpoint(
+    project_id: str, document_id: str, session: DbSession
+) -> list[ExtractionRunResponse]:
+    try:
+        runs = list_extraction_runs(session, project_id, document_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return [ExtractionRunResponse.model_validate(run) for run in runs]
+
+
+@router.get(
+    "/projects/{project_id}/documents/{document_id}/extractions/{run_id}",
+    response_model=ExtractionRunResponse,
+)
+def get_extraction_endpoint(
+    project_id: str, document_id: str, run_id: str, session: DbSession
+) -> ExtractionRunResponse:
+    try:
+        run = get_extraction_run(session, project_id, document_id, run_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return ExtractionRunResponse.model_validate(run)
+
+
+@router.patch(
+    "/projects/{project_id}/documents/{document_id}/extractions/{run_id}/fields/{field_id}/review",
+    response_model=ExtractedFieldResponse,
+)
+def review_field_endpoint(
+    project_id: str,
+    document_id: str,
+    run_id: str,
+    field_id: str,
+    payload: FieldReviewRequest,
+    session: DbSession,
+) -> ExtractedFieldResponse:
+    try:
+        field = review_extracted_field(
+            session,
+            project_id=project_id,
+            document_id=document_id,
+            run_id=run_id,
+            field_id=field_id,
+            decision=payload.decision,
+            value=payload.value,
+            reason=payload.reason,
+        )
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except ExtractionConflictError as exc:
+        raise _conflict(exc) from exc
+    return ExtractedFieldResponse.model_validate(field)
