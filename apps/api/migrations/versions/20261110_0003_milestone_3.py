@@ -24,7 +24,6 @@ def upgrade() -> None:
     if op.get_bind().dialect.name == "postgresql":
         op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    embedding_run_status.create(op.get_bind(), checkfirst=True)
     op.create_table(
         "embedding_runs",
         sa.Column("id", sa.String(length=36), nullable=False),
