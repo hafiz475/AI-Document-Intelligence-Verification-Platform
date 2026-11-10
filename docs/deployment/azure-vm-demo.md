@@ -388,7 +388,38 @@ Stop services without deleting data:
 Do not run docker compose down with the -v option unless permanent deletion of the
 database, Redis state, and uploaded documents is intended.
 
-## 17. Current limitations
+## 17. Milestone 3 pgvector and retrieval verification
+
+The production PostgreSQL image is pgvector/pgvector:pg17. Migration
+20261110_0003 runs CREATE EXTENSION IF NOT EXISTS vector on PostgreSQL and creates the
+active chunk-vector, embedding-run, and retrieval-evaluation tables.
+
+Verify extension availability on the VM:
+
+    docker compose --env-file .env.production -f docker-compose.prod.yml +      exec -T postgres psql -U assureai -d assureai +      -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+
+The default deployment uses deterministic development embeddings:
+
+    ASSUREAI_EMBEDDING_PROVIDER=development
+    ASSUREAI_EMBEDDING_DIMENSIONS=64
+    ASSUREAI_EMBEDDING_BATCH_SIZE=32
+
+For a deployment smoke test, upload the synthetic report, wait for READY, confirm a
+Milestone 2 extraction still reaches COMPLETED, then:
+
+1. POST the document embeddings endpoint and confirm QUEUED then COMPLETED.
+2. Confirm chunks_embedded equals chunks_total.
+3. POST project search with query "Was abnormal gearbox vibration detected?".
+4. Confirm the expected source chunk is ranked and metric is cosine_similarity.
+5. Repeat through the document-scoped search endpoint.
+6. Search another project and confirm no chunk crosses the project boundary.
+7. Submit resolved cases from sample-data/evaluation/retrieval-cases.json and inspect
+   stored Hit@K, Recall@K, and MRR.
+
+No OpenAI embedding execution should be claimed unless
+ASSUREAI_EMBEDDING_PROVIDER=openai and a valid backend-only key were actually used.
+
+## 18. Current limitations
 
 - No user authentication or authorization exists yet.
 - Traffic is HTTP, not HTTPS.

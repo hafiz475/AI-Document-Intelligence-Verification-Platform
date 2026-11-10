@@ -1,12 +1,12 @@
 # AssureAI
 
 AssureAI is a document-intelligence application for traceable technical-assurance
-workflows. Milestone 2 adds evidence-backed structured extraction and human review to
-the existing project-isolated ingestion pipeline.
+workflows. Milestone 3 adds pgvector embeddings, project-isolated semantic retrieval,
+and retrieval-only evaluation without adding generated answers.
 
-> **Status:** Milestones 0-2 are implemented. The Azure demo uses the deterministic
-> development provider. Embeddings, vector retrieval, RAG, chat, agents, OCR, and a
-> full evaluation framework remain planned.
+> **Status:** Milestones 0-3 are implemented. The Azure demo uses deterministic
+> development AI and embedding providers. RAG answers, generated citations, chat,
+> agents, OCR, and the full evaluation framework remain planned.
 
 ## Implemented
 
@@ -32,20 +32,27 @@ the existing project-isolated ingestion pipeline.
 - Preserve original AI values while reviewers verify, correct, or reject fields.
 - Persist extraction and field-review audit events without document contents.
 - Poll extraction runs, display evidence and history, and review fields in the React UI.
+- Generate chunk embeddings explicitly through a separate Dramatiq lifecycle.
+- Store one active, versioned embedding per chunk in PostgreSQL pgvector.
+- Batch embedding calls and replace stale document vectors transactionally.
+- Select deterministic development or OpenAI embedding providers through backend config.
+- Search project or document scopes with exact cosine similarity and bounded top-k.
+- Reject searches without compatible provider/model/dimension vectors.
+- Persist retrieval-only Hit@K, Recall@K, MRR, and per-case ranked evidence.
+- Display embedding status, ranked source chunks, and retrieval metrics in React.
 
 ## Planned, not implemented
 
-- Embeddings and pgvector similarity retrieval
-- Semantic retrieval and retrieval evaluation
-- RAG, chat, agents, and general tool calling
+- RAG-generated answers and validated answer citations
+- Conversation/chat, agents, and general tool calling
 - OCR and image-only document processing
-- Full extraction/retrieval evaluation run tracking
+- Full AI evaluation framework and evaluation operations dashboard
 - Authentication and multi-user authorization
 - Production object storage
 
 ## Architecture
 
-~~~mermaid
+```mermaid
 flowchart LR
     U[Reviewer] --> W[React web app]
     W --> A[FastAPI API]
@@ -57,7 +64,10 @@ flowchart LR
     J --> P
     J --> D[Development provider]
     J -. configured .-> O[OpenAI structured outputs]
-~~~
+    J --> E[Development embeddings]
+    J -. configured .-> OE[OpenAI embeddings]
+    A -->|cosine search| P
+```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/adr](docs/adr).
 
@@ -132,6 +142,16 @@ Extraction endpoints:
 - GET /api/v1/projects/{project_id}/documents/{document_id}/extractions/{run_id}
 - PATCH /api/v1/projects/{project_id}/documents/{document_id}/extractions/{run_id}/fields/{field_id}/review
 
+Embedding and retrieval endpoints:
+
+- POST /api/v1/projects/{project_id}/documents/{document_id}/embeddings
+- GET /api/v1/projects/{project_id}/documents/{document_id}/embeddings
+- GET /api/v1/projects/{project_id}/documents/{document_id}/embeddings/{run_id}
+- POST /api/v1/projects/{project_id}/search
+- POST /api/v1/projects/{project_id}/documents/{document_id}/search
+- POST /api/v1/projects/{project_id}/retrieval-evaluations
+- GET /api/v1/projects/{project_id}/retrieval-evaluations
+
 The upload endpoint accepts multipart/form-data and returns HTTP 202 after durable
 metadata/file storage and successful queue submission. The same SHA-256 content in the
 same project returns HTTP 409 and identifies the existing document. Storage keys and
@@ -164,6 +184,28 @@ persisted.
 Review decisions never overwrite raw_value or normalized_value. Corrections use a
 separate value, while verification/rejection/correction events retain timestamp, reason,
 and a null reviewer until authentication is implemented.
+
+## Embeddings and semantic retrieval
+
+Embedding generation is explicit and allowed only for READY documents. A QUEUED
+EmbeddingRun is processed in configurable batches. All returned vectors are validated
+against the run provider, model, dimensions, and count before the prior active document
+vectors are replaced transactionally. Failed re-embedding leaves the prior complete set
+available; retrying a completed run is a no-op.
+
+The development provider is deterministic, offline hashing intended only for tests and
+demos. Configure ASSUREAI_EMBEDDING_PROVIDER=openai,
+ASSUREAI_OPENAI_EMBEDDING_MODEL, ASSUREAI_EMBEDDING_DIMENSIONS, and a backend-only
+ASSUREAI_OPENAI_API_KEY to use the real adapter.
+
+Search embeds the query with the configured compatible provider and uses exact pgvector
+cosine distance, returning cosine_similarity = 1 - distance. Every SQL search includes
+project, optional document/page, provider, model, and dimension filters. There is no
+keyword fallback and no LLM-generated answer.
+
+The synthetic retrieval cases live in
+[sample-data/evaluation](sample-data/evaluation). Evaluation persists real ranked
+chunk IDs and calculates Hit@K, Recall@K, and mean reciprocal rank without an LLM judge.
 
 ## Quality checks
 
@@ -215,15 +257,16 @@ container structure, and UTF-8 decoding. Original filenames are display metadata
 Project scope is carried through document and chunk queries. Uploaded contents and
 secrets are ignored by version control and are never logged.
 
-Milestone 2 has no authentication, malware scanning, OCR, encrypted object storage,
-distributed storage adapter, embeddings, retrieval, RAG, or chat. Image-only PDFs fail
+Milestone 3 has no authentication, malware scanning, OCR, encrypted object storage,
+distributed storage adapter, RAG answer generation, citations, or chat. Image-only PDFs fail
 cleanly when no extractable text is found. Local filesystem storage and the deterministic
-provider are intended for development and the single-host demo.
+providers are intended for development and the single-host demo.
 
-## Recommended Milestone 3
+## Recommended Milestone 4
 
-Add embeddings, pgvector indexing, semantic retrieval, and retrieval evaluation. Do not
-add RAG answers until retrieval quality and project isolation are measured.
+Use semantic retrieval for controlled context construction, grounded LLM answers,
+validated citations, and SUPPORTED / PARTIALLY_SUPPORTED / INSUFFICIENT_EVIDENCE
+classification. Do not add chat or agents as part of that step.
 
 ## License
 

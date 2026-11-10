@@ -3,10 +3,10 @@
 ## Current system
 
 AssureAI remains a modular monolith with separately runnable web, API, and worker
-processes. Milestone 2 preserves the ingestion pipeline and adds structured AI
-extraction, controlled evidence, immutable prompts, review decisions, and audit events.
+processes. Milestone 3 preserves ingestion and structured extraction while adding
+version-safe chunk embeddings, pgvector semantic search, and retrieval-only evaluation.
 
-~~~mermaid
+```mermaid
 flowchart TB
     Reviewer --> Web[React / TypeScript]
     Web -->|Project, document, extraction, review API| API[FastAPI]
@@ -18,10 +18,13 @@ flowchart TB
     Worker --> DB
     Worker --> Dev[Deterministic development provider]
     Worker -. configured .-> OpenAI[OpenAI structured outputs]
-~~~
+    Worker --> EmbDev[Deterministic development embeddings]
+    Worker -. configured .-> OpenAIEmb[OpenAI embeddings]
+    API -->|exact cosine search| DB
+```
 
-PostgreSQL still uses the pgvector image because Milestone 3 plans vector retrieval, but
-Milestone 2 creates no vector columns and performs no embedding or similarity search.
+PostgreSQL uses the pgvector image and the Milestone 3 migration safely enables the
+vector extension. Exact vector search is intentional for the small demo dataset.
 
 ## Module boundaries
 
@@ -96,6 +99,37 @@ The Milestone 2 migration adds:
 Document and extraction statuses are deliberately separate. Historical completed runs
 are immutable; a later extraction creates a new run.
 
+The Milestone 3 migration adds:
+
+- embedding_runs with a separate QUEUED/PROCESSING/COMPLETED/FAILED lifecycle
+- document_chunk_embeddings with pgvector vectors and compatibility metadata
+- retrieval_evaluation_runs and per-case stored ranked results
+
+One active embedding is allowed per chunk. Historical run metadata is retained, while
+active vectors are replaced only after every batch succeeds.
+
+## Embedding and retrieval flow
+
+1. A user explicitly requests embeddings for a READY document.
+2. The API records the configured provider, model, dimensions, and embedding version.
+3. The worker commits PROCESSING and loads all persisted chunks in stable order.
+4. Chunks are sent to the provider in configurable batches.
+5. Counts, dimensions, provider, and model are validated for every response.
+6. The complete vector set replaces prior active vectors in one transaction.
+7. Search embeds the query with the configured provider.
+8. Exact cosine distance runs only across matching project, optional document,
+   provider, model, and dimension rows.
+9. The API returns ranked chunks with cosine similarity, source metadata, and latency.
+10. Missing compatible vectors return HTTP 409; no keyword fallback or answer model runs.
+
+PostgreSQL uses pgvector operators in production. SQLite tests calculate the equivalent
+cosine similarity after applying the same compatibility and scope filters. No
+approximate vector index is used because the demo corpus is small.
+
+Retrieval evaluation accepts explicit relevant chunk IDs, executes real stored searches,
+and persists per-case rank, hit, recall, and reciprocal rank plus aggregate Hit@K,
+Recall@K, and MRR.
+
 ## Structured extraction flow
 
 1. The API verifies project/document scope and READY status.
@@ -151,9 +185,8 @@ backups, monitoring, and an explicit migration job.
 
 ## Deferred work
 
-Authentication, embeddings, vector search, semantic retrieval, retrieval evaluation,
-RAG, chat, agents, general tool calling, OCR, and full extraction evaluation are not
-implemented in Milestone 2.
+Authentication, RAG answers, generated answer citations, chat, agents, general tool
+calling, OCR, and the full evaluation framework are not implemented in Milestone 3.
 
 ## Decisions
 
@@ -167,3 +200,8 @@ See [docs/adr](docs/adr), especially:
 - ADR 0010: immutable prompt versioning
 - ADR 0011: controlled chunk evidence validation
 - ADR 0012: preserve original values during human review
+- ADR 0013: provider-neutral embedding interface
+- ADR 0014: dedicated active chunk embeddings in pgvector
+- ADR 0015: cosine similarity retrieval
+- ADR 0016: transactional active-vector replacement
+- ADR 0017: deterministic retrieval-only evaluation

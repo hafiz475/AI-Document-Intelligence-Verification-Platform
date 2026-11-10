@@ -11,6 +11,20 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: assureai_ci
+          POSTGRES_USER: assureai
+          POSTGRES_PASSWORD: assureai-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assureai -d assureai_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: apps/api
@@ -30,6 +44,10 @@ jobs:
       - run: alembic upgrade head
         env:
           ASSUREAI_DATABASE_URL: sqlite:///./migration-check.db
+      - name: Validate PostgreSQL pgvector migration
+        run: alembic upgrade head
+        env:
+          ASSUREAI_DATABASE_URL: postgresql+psycopg://assureai:assureai-ci-password@localhost:5432/assureai_ci
 
   frontend:
     runs-on: ubuntu-latest

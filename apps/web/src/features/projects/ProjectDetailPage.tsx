@@ -8,6 +8,8 @@ import {
   StatusBadge,
 } from "../../components/States";
 import { useDocuments, useProject, useUploadDocument } from "../hooks";
+import { RetrievalEvaluationPanel } from "../RetrievalEvaluationPanel";
+import { SemanticSearchPanel } from "../SemanticSearchPanel";
 
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
@@ -50,6 +52,8 @@ export function ProjectDetailPage() {
           Upload accepted. Processing has been queued.
         </p>
       )}
+
+      <SemanticSearchPanel projectId={projectId} />
 
       <div className="section-heading">
         <h2>Documents</h2>
@@ -102,6 +106,7 @@ export function ProjectDetailPage() {
           />
         )
       )}
+      <RetrievalEvaluationPanel projectId={projectId} />
     </section>
   );
 }

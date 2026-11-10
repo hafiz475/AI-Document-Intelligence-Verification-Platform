@@ -78,7 +78,7 @@ it("renders the create project form", () => {
 
 it("shows the upload state after a document is selected", async () => {
   const pendingUpload = new Promise<Response>(() => undefined);
-  const fetchMock = mockResponses(project, []);
+  const fetchMock = mockResponses(project, [], []);
   fetchMock.mockReturnValueOnce(pendingUpload);
   const view = renderApp("/projects/project-1");
   await screen.findByRole("heading", { name: "Wind Farm Alpha" });
@@ -110,7 +110,7 @@ it("shows a processing state", async () => {
 });
 
 it("shows extracted chunks for a ready document", async () => {
-  mockResponses(baseDocument, [], {
+  mockResponses(baseDocument, [], [], {
     items: [
       {
         id: "chunk-1",

@@ -567,6 +567,94 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.embedding-panel,
+.semantic-search,
+.retrieval-evaluation {
+  background: #0a1524;
+  border: 1px solid #26364a;
+  border-radius: 0.9rem;
+  margin-top: 2rem;
+  padding: 1.25rem;
+}
+.embedding-summary {
+  display: grid;
+  gap: 1rem;
+}
+.embedding-summary dl {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin: 0;
+}
+.embedding-summary dt,
+.search-metadata {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.embedding-summary dd {
+  margin: 0.25rem 0 0;
+}
+.search-form {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(200px, 1fr) 110px auto;
+}
+.search-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+.search-form input {
+  background: #07111f;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  color: #f8fafc;
+  font: inherit;
+  min-width: 0;
+  padding: 0.75rem;
+}
+.search-results ol {
+  display: grid;
+  gap: 0.8rem;
+  list-style: none;
+  padding: 0;
+}
+.search-results li {
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  border-radius: 0.65rem;
+  padding: 1rem;
+}
+.search-results header {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+.search-results blockquote {
+  border-left: 3px solid #38bdf8;
+  color: #cbd5e1;
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+}
+.evaluation-metrics {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(100px, 1fr));
+}
+.evaluation-metrics div {
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  border-radius: 0.65rem;
+  display: grid;
+  padding: 1rem;
+}
+.evaluation-metrics strong {
+  font-size: 1.5rem;
+}
+.evaluation-metrics span {
+  color: #94a3b8;
+}
+
 @media (max-width: 640px) {
   .milestone {
     display: none;
@@ -594,6 +682,12 @@ tbody tr:hover {
     flex-direction: column;
   }
   .extraction-history li {
+    grid-template-columns: 1fr;
+  }
+  .search-form {
+    grid-template-columns: 1fr;
+  }
+  .evaluation-metrics {
     grid-template-columns: 1fr;
   }
 }

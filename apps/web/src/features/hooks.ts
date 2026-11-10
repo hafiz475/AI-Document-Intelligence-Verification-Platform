@@ -12,6 +12,12 @@ import {
   getExtractions,
   reviewField,
 } from "../api/extractions";
+import {
+  createEmbeddingRun,
+  getEmbeddingRuns,
+  getRetrievalEvaluations,
+  semanticSearch,
+} from "../api/retrieval";
 import type { FieldReview } from "../api/types";
 
 export function useProjects() {
@@ -141,5 +147,54 @@ export function useReviewField(projectId: string, documentId: string) {
           "extractions",
         ],
       }),
+  });
+}
+
+export function useEmbeddingRuns(
+  projectId: string,
+  documentId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["projects", projectId, "documents", documentId, "embeddings"],
+    queryFn: () => getEmbeddingRuns(projectId, documentId),
+    enabled,
+    refetchInterval: (query) => {
+      const active = query.state.data?.some((run) =>
+        ["QUEUED", "PROCESSING"].includes(run.status),
+      );
+      return active ? 2_000 : false;
+    },
+  });
+}
+
+export function useCreateEmbeddingRun(projectId: string, documentId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => createEmbeddingRun(projectId, documentId),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: [
+          "projects",
+          projectId,
+          "documents",
+          documentId,
+          "embeddings",
+        ],
+      }),
+  });
+}
+
+export function useSemanticSearch(projectId: string, documentId?: string) {
+  return useMutation({
+    mutationFn: ({ query, topK }: { query: string; topK: number }) =>
+      semanticSearch(projectId, query, topK, documentId),
+  });
+}
+
+export function useRetrievalEvaluations(projectId: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "retrieval-evaluations"],
+    queryFn: () => getRetrievalEvaluations(projectId),
   });
 }

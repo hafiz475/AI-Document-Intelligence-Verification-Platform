@@ -1,0 +1,37 @@
+{
+  "dataset": "synthetic-wind-turbine-inspection-v1",
+  "document": "sample-wind-turbine-inspection.txt",
+  "notes": "Resolve expected_chunk_contains to generated chunk IDs after deterministic ingestion. The development provider is test-only.",
+  "cases": [
+    {
+      "query": "gearbox vibration",
+      "expected_chunk_contains": "vibration",
+      "expected_page": null
+    },
+    {
+      "query": "mechanical vibration issue",
+      "expected_chunk_contains": "vibration",
+      "expected_page": null
+    },
+    {
+      "query": "when is next inspection due?",
+      "expected_chunk_contains": "Next inspection date",
+      "expected_page": null
+    },
+    {
+      "query": "what blade damage was observed?",
+      "expected_chunk_contains": "coating chip",
+      "expected_page": null
+    },
+    {
+      "query": "who manufactured the turbine?",
+      "expected_chunk_contains": "Northstar Renewable Systems",
+      "expected_page": null
+    },
+    {
+      "query": "was a hydraulic leak found?",
+      "expected_chunk_contains": "No leakage",
+      "expected_page": null
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import {
   StatusBadge,
 } from "../../components/States";
 import { useDocument, useDocumentChunks } from "../hooks";
+import { SemanticSearchPanel } from "../SemanticSearchPanel";
+import { EmbeddingPanel } from "./EmbeddingPanel";
 import { ExtractionPanel } from "./ExtractionPanel";
 
 export function DocumentDetailPage() {
@@ -82,6 +84,8 @@ export function DocumentDetailPage() {
       {item.status === "READY" && (
         <div>
           <ExtractionPanel documentId={documentId} projectId={projectId} />
+          <EmbeddingPanel documentId={documentId} projectId={projectId} />
+          <SemanticSearchPanel documentId={documentId} projectId={projectId} />
           <div className="section-heading">
             <h2>Extracted chunks</h2>
             <p>{chunks.data?.total ?? 0} deterministic text chunks</p>
@@ -91,7 +95,11 @@ export function DocumentDetailPage() {
           {chunks.data?.items.length ? (
             <div className="chunks">
               {chunks.data.items.map((chunk) => (
-                <article className="chunk-card" key={chunk.id}>
+                <article
+                  className="chunk-card"
+                  id={"chunk-" + chunk.id}
+                  key={chunk.id}
+                >
                   <header>
                     <strong>Chunk {chunk.chunk_index + 1}</strong>
                     <span>

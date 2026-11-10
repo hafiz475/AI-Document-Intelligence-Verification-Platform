@@ -124,3 +124,78 @@ export interface FieldReview {
   value?: string | string[];
   reason?: string;
 }
+
+export type EmbeddingRunStatus =
+  "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface EmbeddingRun {
+  id: string;
+  project_id: string;
+  document_id: string;
+  status: EmbeddingRunStatus;
+  provider: string;
+  model: string;
+  dimensions: number;
+  embedding_version: string;
+  chunks_total: number;
+  chunks_embedded: number;
+  latency_ms: number | null;
+  input_tokens: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SemanticSearchResult {
+  rank: number;
+  document_id: string;
+  document_name: string;
+  chunk_id: string;
+  chunk_index: number;
+  page_number: number | null;
+  content: string;
+  similarity_score: number;
+  metadata: Record<string, unknown>;
+  embedding_model: string;
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  provider: string;
+  model: string;
+  dimensions: number;
+  metric: "cosine_similarity";
+  query_embedding_latency_ms: number;
+  search_latency_ms: number;
+  results: SemanticSearchResult[];
+}
+
+export interface RetrievalEvaluationCase {
+  id: string;
+  query: string;
+  expected_chunk_ids: string[];
+  retrieved_chunk_ids: string[];
+  first_relevant_rank: number | null;
+  hit: boolean;
+  recall: number;
+  reciprocal_rank: number;
+}
+
+export interface RetrievalEvaluationRun {
+  id: string;
+  project_id: string;
+  embedding_provider: string;
+  embedding_model: string;
+  top_k: number;
+  case_count: number;
+  hit_rate: number;
+  mean_reciprocal_rank: number;
+  recall_at_k: number;
+  started_at: string;
+  completed_at: string;
+  created_at: string;
+  case_results: RetrievalEvaluationCase[];
+}

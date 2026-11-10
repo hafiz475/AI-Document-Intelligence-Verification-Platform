@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 from assureai_api.models import (
     DocumentStatus,
+    EmbeddingRunStatus,
     ExtractionRunStatus,
     ReviewStatus,
     SupportStatus,
@@ -170,3 +171,99 @@ class FieldReviewRequest(BaseModel):
         if self.decision != ReviewStatus.CORRECTED and self.value is not None:
             raise ValueError("value is accepted only for CORRECTED")
         return self
+
+
+class EmbeddingRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str
+    document_id: str
+    status: EmbeddingRunStatus
+    provider: str
+    model: str
+    dimensions: int
+    embedding_version: str
+    chunks_total: int
+    chunks_embedded: int
+    latency_ms: int | None
+    input_tokens: int | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    error_code: str | None
+    error_message: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SemanticSearchRequest(BaseModel):
+    query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+    top_k: int = Field(default=5, ge=1, le=20)
+    document_id: str | None = None
+    page_number: int | None = Field(default=None, ge=1)
+
+
+class SemanticSearchResultResponse(BaseModel):
+    rank: int
+    document_id: str
+    document_name: str
+    chunk_id: str
+    chunk_index: int
+    page_number: int | None
+    content: str
+    similarity_score: float
+    metadata: dict[str, object]
+    embedding_model: str
+
+
+class SemanticSearchResponse(BaseModel):
+    query: str
+    provider: str
+    model: str
+    dimensions: int
+    metric: Literal["cosine_similarity"] = "cosine_similarity"
+    query_embedding_latency_ms: int
+    search_latency_ms: int
+    results: list[SemanticSearchResultResponse]
+
+
+class RetrievalEvaluationCaseRequest(BaseModel):
+    query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+    expected_chunk_ids: list[str] = Field(min_length=1)
+    document_id: str | None = None
+
+
+class RetrievalEvaluationRequest(BaseModel):
+    top_k: int = Field(default=5, ge=1, le=20)
+    cases: list[RetrievalEvaluationCaseRequest] = Field(min_length=1, max_length=100)
+
+
+class RetrievalEvaluationCaseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    query: str
+    expected_chunk_ids: list[str]
+    retrieved_chunk_ids: list[str]
+    first_relevant_rank: int | None
+    hit: bool
+    recall: float
+    reciprocal_rank: float
+
+
+class RetrievalEvaluationRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str
+    embedding_provider: str
+    embedding_model: str
+    top_k: int
+    case_count: int
+    hit_rate: float
+    mean_reciprocal_rank: float
+    recall_at_k: float
+    started_at: datetime
+    completed_at: datetime
+    created_at: datetime
+    case_results: list[RetrievalEvaluationCaseResponse]

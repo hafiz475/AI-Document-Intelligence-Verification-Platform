@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     ai_provider: Literal["disabled", "development", "openai"] = "disabled"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
+    embedding_provider: Literal["disabled", "development", "openai"] = "disabled"
+    embedding_model: str = "deterministic-development-v1"
+    embedding_dimensions: int = Field(default=64, ge=8, le=4096)
+    embedding_batch_size: int = Field(default=32, ge=1, le=2048)
+    openai_embedding_model: str = "text-embedding-3-small"
 
 
 @lru_cache

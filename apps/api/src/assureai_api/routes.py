@@ -6,6 +6,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from sqlalchemy.orm import Session
 
 from assureai_api.database import get_db
+from assureai_api.embedding_providers import (
+    EmbeddingConfigurationError,
+    EmbeddingProviderError,
+    create_embedding_provider,
+)
 from assureai_api.extraction_services import (
     ExtractionConflictError,
     ExtractionUnavailableError,
@@ -14,15 +19,32 @@ from assureai_api.extraction_services import (
     list_extraction_runs,
     review_extracted_field,
 )
+from assureai_api.retrieval_services import (
+    EmbeddingConflictError,
+    EmbeddingUnavailableError,
+    RetrievalUnavailableError,
+    create_embedding_run,
+    get_embedding_run,
+    list_embedding_runs,
+    list_retrieval_evaluations,
+    run_retrieval_evaluation,
+    semantic_search,
+)
 from assureai_api.schemas import (
     ChunkListResponse,
     ChunkResponse,
     DocumentResponse,
+    EmbeddingRunResponse,
     ExtractedFieldResponse,
     ExtractionRunResponse,
     FieldReviewRequest,
     ProjectCreate,
     ProjectResponse,
+    RetrievalEvaluationRequest,
+    RetrievalEvaluationRunResponse,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+    SemanticSearchResultResponse,
 )
 from assureai_api.services import (
     DuplicateDocumentError,
@@ -251,3 +273,196 @@ def review_field_endpoint(
     except ExtractionConflictError as exc:
         raise _conflict(exc) from exc
     return ExtractedFieldResponse.model_validate(field)
+
+
+@router.post(
+    "/projects/{project_id}/documents/{document_id}/embeddings",
+    response_model=EmbeddingRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_embeddings_endpoint(
+    project_id: str,
+    document_id: str,
+    request: Request,
+    session: DbSession,
+) -> EmbeddingRunResponse:
+    try:
+        run = create_embedding_run(
+            session,
+            settings=request.app.state.settings,
+            enqueue=request.app.state.enqueue_embedding,
+            project_id=project_id,
+            document_id=document_id,
+        )
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except EmbeddingConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except EmbeddingUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return EmbeddingRunResponse.model_validate(run)
+
+
+@router.get(
+    "/projects/{project_id}/documents/{document_id}/embeddings",
+    response_model=list[EmbeddingRunResponse],
+)
+def list_embeddings_endpoint(
+    project_id: str, document_id: str, session: DbSession
+) -> list[EmbeddingRunResponse]:
+    try:
+        runs = list_embedding_runs(session, project_id, document_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return [EmbeddingRunResponse.model_validate(run) for run in runs]
+
+
+@router.get(
+    "/projects/{project_id}/documents/{document_id}/embeddings/{run_id}",
+    response_model=EmbeddingRunResponse,
+)
+def get_embedding_endpoint(
+    project_id: str, document_id: str, run_id: str, session: DbSession
+) -> EmbeddingRunResponse:
+    try:
+        run = get_embedding_run(session, project_id, document_id, run_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return EmbeddingRunResponse.model_validate(run)
+
+
+def _search(
+    *,
+    project_id: str,
+    payload: SemanticSearchRequest,
+    request: Request,
+    session: Session,
+    document_id: str | None,
+) -> SemanticSearchResponse:
+    if (
+        payload.document_id is not None
+        and document_id is not None
+        and payload.document_id != document_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Conflicting document scopes.",
+        )
+    scope = document_id or payload.document_id
+    try:
+        provider = create_embedding_provider(request.app.state.settings)
+        result = semantic_search(
+            session,
+            provider=provider,
+            project_id=project_id,
+            document_id=scope,
+            query=payload.query,
+            top_k=payload.top_k,
+            page_number=payload.page_number,
+        )
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except RetrievalUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except (EmbeddingConfigurationError, EmbeddingProviderError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return SemanticSearchResponse(
+        query=payload.query,
+        provider=result.provider,
+        model=result.model,
+        dimensions=result.dimensions,
+        query_embedding_latency_ms=result.query_embedding_latency_ms,
+        search_latency_ms=result.search_latency_ms,
+        results=[
+            SemanticSearchResultResponse.model_validate(item, from_attributes=True)
+            for item in result.results
+        ],
+    )
+
+
+@router.post("/projects/{project_id}/search", response_model=SemanticSearchResponse)
+def project_search_endpoint(
+    project_id: str,
+    payload: SemanticSearchRequest,
+    request: Request,
+    session: DbSession,
+) -> SemanticSearchResponse:
+    return _search(
+        project_id=project_id,
+        payload=payload,
+        request=request,
+        session=session,
+        document_id=None,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/documents/{document_id}/search",
+    response_model=SemanticSearchResponse,
+)
+def document_search_endpoint(
+    project_id: str,
+    document_id: str,
+    payload: SemanticSearchRequest,
+    request: Request,
+    session: DbSession,
+) -> SemanticSearchResponse:
+    return _search(
+        project_id=project_id,
+        payload=payload,
+        request=request,
+        session=session,
+        document_id=document_id,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/retrieval-evaluations",
+    response_model=RetrievalEvaluationRunResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_retrieval_evaluation_endpoint(
+    project_id: str,
+    payload: RetrievalEvaluationRequest,
+    request: Request,
+    session: DbSession,
+) -> RetrievalEvaluationRunResponse:
+    try:
+        provider = create_embedding_provider(request.app.state.settings)
+        run = run_retrieval_evaluation(
+            session,
+            provider=provider,
+            project_id=project_id,
+            top_k=payload.top_k,
+            cases=[
+                (item.query, item.expected_chunk_ids, item.document_id) for item in payload.cases
+            ],
+        )
+        run = list_retrieval_evaluations(session, project_id)[0]
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except RetrievalUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except (EmbeddingConfigurationError, EmbeddingProviderError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return RetrievalEvaluationRunResponse.model_validate(run)
+
+
+@router.get(
+    "/projects/{project_id}/retrieval-evaluations",
+    response_model=list[RetrievalEvaluationRunResponse],
+)
+def list_retrieval_evaluation_endpoint(
+    project_id: str, session: DbSession
+) -> list[RetrievalEvaluationRunResponse]:
+    try:
+        runs = list_retrieval_evaluations(session, project_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return [RetrievalEvaluationRunResponse.model_validate(run) for run in runs]

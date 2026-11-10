@@ -24,6 +24,7 @@ def create_app(
     settings: Settings | None = None,
     enqueue_document: Callable[[str], object] | None = None,
     enqueue_extraction: Callable[[str], object] | None = None,
+    enqueue_embedding: Callable[[str], object] | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -39,6 +40,15 @@ def create_app(
         try:
             with engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
+                if (
+                    connection.dialect.name == "postgresql"
+                    and resolved_settings.embedding_provider != "disabled"
+                ):
+                    vector_available = connection.scalar(
+                        text("SELECT count(*) FROM pg_extension WHERE extname = 'vector'")
+                    )
+                    if vector_available != 1:
+                        return False
             if redis_client is not None:
                 redis_client.ping()
             return True
@@ -74,6 +84,11 @@ def create_app(
 
         enqueue_extraction = default_extraction_enqueue
     application.state.enqueue_extraction = enqueue_extraction
+    if enqueue_embedding is None:
+        from assureai_api.queue import enqueue_embedding as default_embedding_enqueue
+
+        enqueue_embedding = default_embedding_enqueue
+    application.state.enqueue_embedding = enqueue_embedding
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,

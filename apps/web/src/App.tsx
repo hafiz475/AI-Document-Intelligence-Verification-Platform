@@ -13,7 +13,7 @@ function Layout() {
           <Link className="brand" to="/">
             <span aria-hidden="true">A</span>AssureAI
           </Link>
-          <span className="milestone">Milestone 1 · Document ingestion</span>
+          <span className="milestone">Milestone 3 · Semantic retrieval</span>
         </nav>
       </header>
       <main className="container">
@@ -29,8 +29,8 @@ function Layout() {
         </Routes>
       </main>
       <footer>
-        AssureAI · deterministic ingestion only · AI extraction and RAG are not
-        enabled
+        AssureAI · evidence-first document intelligence · generated answers are
+        not enabled
       </footer>
     </div>
   );
