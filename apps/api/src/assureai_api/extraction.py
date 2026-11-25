@@ -5,7 +5,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from docx import Document as DocxDocument  # type: ignore[import-untyped]
+from docx import Document as DocxDocument
 from pypdf import PdfReader
 
 

@@ -131,7 +131,7 @@ def create_rag_question(
     return get_rag_question(session, project_id, question.id)
 
 
-def _question_query() -> Select[tuple[RagQuestion]]:
+def _question_query() -> Select[RagQuestion]:
     return select(RagQuestion).options(
         selectinload(RagQuestion.prompt_version),
         selectinload(RagQuestion.retrieved_chunks).selectinload(QuestionRetrievedChunk.chunk),

@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from docx import Document as DocxDocument  # type: ignore[import-untyped]
+from docx import Document as DocxDocument
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
