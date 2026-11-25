@@ -25,6 +25,7 @@ def create_app(
     enqueue_document: Callable[[str], object] | None = None,
     enqueue_extraction: Callable[[str], object] | None = None,
     enqueue_embedding: Callable[[str], object] | None = None,
+    enqueue_rag_question: Callable[[str], object] | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -89,6 +90,11 @@ def create_app(
 
         enqueue_embedding = default_embedding_enqueue
     application.state.enqueue_embedding = enqueue_embedding
+    if enqueue_rag_question is None:
+        from assureai_api.queue import enqueue_rag_question as default_rag_enqueue
+
+        enqueue_rag_question = default_rag_enqueue
+    application.state.enqueue_rag_question = enqueue_rag_question
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,

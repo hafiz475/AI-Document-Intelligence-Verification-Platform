@@ -124,7 +124,7 @@ def create_extraction_run(
     return run
 
 
-def _run_query() -> Select[ExtractionRun]:
+def _run_query() -> Select[tuple[ExtractionRun]]:
     return select(ExtractionRun).options(
         selectinload(ExtractionRun.prompt_version),
         selectinload(ExtractionRun.fields).selectinload(ExtractedField.evidence),

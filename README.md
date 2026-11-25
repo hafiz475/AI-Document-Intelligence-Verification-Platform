@@ -1,11 +1,11 @@
 # AssureAI
 
 AssureAI is a document-intelligence application for traceable technical-assurance
-workflows. Milestone 3 adds pgvector embeddings, project-isolated semantic retrieval,
-and retrieval-only evaluation without adding generated answers.
+workflows. Milestone 4 adds evidence-backed retrieval-augmented generation with
+project-isolated retrieval, strict structured answers, and application-validated citations.
 
-> **Status:** Milestones 0-3 are implemented. The Azure demo uses deterministic
-> development AI and embedding providers. RAG answers, generated citations, chat,
+> **Status:** Milestones 0-4 are implemented. The default demo uses deterministic,
+> offline development providers and does not represent real LLM execution. Chat,
 > agents, OCR, and the full evaluation framework remain planned.
 
 ## Implemented
@@ -40,10 +40,17 @@ and retrieval-only evaluation without adding generated answers.
 - Reject searches without compatible provider/model/dimension vectors.
 - Persist retrieval-only Hit@K, Recall@K, MRR, and per-case ranked evidence.
 - Display embedding status, ranked source chunks, and retrieval metrics in React.
+- Queue project- or document-scoped grounded questions through the existing worker.
+- Reuse the configured embedding provider and M3 semantic retrieval without a second store.
+- Persist every ranked retrieved chunk with rank, similarity, provider, and model.
+- Render controlled SOURCE blocks and bind each answer to immutable RAG Prompt v1.
+- Generate strict provider-neutral answers through deterministic development or OpenAI adapters.
+- Reject invented, unretrieved, cross-project, wrong-document/page, and fabricated-quote citations.
+- Distinguish SUPPORTED, PARTIALLY_SUPPORTED, and INSUFFICIENT_EVIDENCE answers.
+- Display answer history, support labels, citations, snippets, and all retrieved sources.
 
 ## Planned, not implemented
 
-- RAG-generated answers and validated answer citations
 - Conversation/chat, agents, and general tool calling
 - OCR and image-only document processing
 - Full AI evaluation framework and evaluation operations dashboard
@@ -67,6 +74,7 @@ flowchart LR
     J --> E[Development embeddings]
     J -. configured .-> OE[OpenAI embeddings]
     A -->|cosine search| P
+    J -->|retrieve, generate, validate citations| P
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/adr](docs/adr).
@@ -152,6 +160,15 @@ Embedding and retrieval endpoints:
 - POST /api/v1/projects/{project_id}/retrieval-evaluations
 - GET /api/v1/projects/{project_id}/retrieval-evaluations
 
+Grounded question endpoints:
+
+- POST /api/v1/projects/{project_id}/questions
+- POST /api/v1/projects/{project_id}/documents/{document_id}/questions
+- GET /api/v1/projects/{project_id}/questions
+- GET /api/v1/projects/{project_id}/questions/{question_id}
+
+See [docs/api.md](docs/api.md) for request and response contracts.
+
 The upload endpoint accepts multipart/form-data and returns HTTP 202 after durable
 metadata/file storage and successful queue submission. The same SHA-256 content in the
 same project returns HTTP 409 and identifies the existing document. Storage keys and
@@ -207,6 +224,30 @@ The synthetic retrieval cases live in
 [sample-data/evaluation](sample-data/evaluation). Evaluation persists real ranked
 chunk IDs and calculates Hit@K, Recall@K, and mean reciprocal rank without an LLM judge.
 
+## Evidence-backed question answering
+
+Question creation returns HTTP 202 and records the configured answer provider/model and
+immutable **AssureAI RAG Answer Prompt v1** before queue submission. The worker embeds
+the question through the existing embedding provider, calls the M3 semantic search in
+the requested project/document scope, and persists the exact ranked result set before
+answer generation.
+
+Evidence is rendered deterministically as SOURCE/CHUNK_ID/DOCUMENT/PAGE/SIMILARITY/TEXT
+blocks. The system prompt treats document text as untrusted data and says instructions
+inside it cannot override system instructions. This boundary reduces prompt-injection
+risk but cannot eliminate it.
+
+Provider output must match the strict RAG answer schema. The application independently
+checks that every cited chunk exists, belongs to the project, was in the persisted
+retrieval set, matches document/page provenance, and contains the quote after whitespace
+normalization. SUPPORTED and PARTIALLY_SUPPORTED require citations.
+INSUFFICIENT_EVIDENCE requires none and is normalized to a canonical safe response.
+
+The deterministic RAG provider makes no network calls and is recorded as
+`development / deterministic-rag-development-v1`; it is a predictable test/demo
+implementation, not an LLM. The OpenAI adapter uses structured outputs only when the
+backend is explicitly configured with credentials.
+
 ## Quality checks
 
 Backend, from apps/api:
@@ -257,16 +298,18 @@ container structure, and UTF-8 decoding. Original filenames are display metadata
 Project scope is carried through document and chunk queries. Uploaded contents and
 secrets are ignored by version control and are never logged.
 
-Milestone 3 has no authentication, malware scanning, OCR, encrypted object storage,
-distributed storage adapter, RAG answer generation, citations, or chat. Image-only PDFs fail
-cleanly when no extractable text is found. Local filesystem storage and the deterministic
-providers are intended for development and the single-host demo.
+Milestone 4 has no authentication, malware scanning, OCR, encrypted object storage,
+distributed storage adapter, conversation memory, agents, or web search. Prompt-injection
+risk is reduced through instruction/data separation and citation validation but is not
+eliminated. Image-only PDFs fail cleanly when no extractable text is found. Local
+filesystem storage and deterministic providers are intended for development and the
+single-host demo.
 
-## Recommended Milestone 4
+## Recommended Milestone 5
 
-Use semantic retrieval for controlled context construction, grounded LLM answers,
-validated citations, and SUPPORTED / PARTIALLY_SUPPORTED / INSUFFICIENT_EVIDENCE
-classification. Do not add chat or agents as part of that step.
+Add an AI evaluation framework covering extraction, retrieval, and RAG evaluation,
+prompt/model comparison, and regression tracking. Do not add autonomous agents as part
+of that milestone.
 
 ## License
 

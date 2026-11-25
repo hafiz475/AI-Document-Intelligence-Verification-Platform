@@ -9,6 +9,8 @@ from assureai_api.models import (
     DocumentStatus,
     EmbeddingRunStatus,
     ExtractionRunStatus,
+    RagQuestionStatus,
+    RagSupportStatus,
     ReviewStatus,
     SupportStatus,
 )
@@ -267,3 +269,66 @@ class RetrievalEvaluationRunResponse(BaseModel):
     completed_at: datetime
     created_at: datetime
     case_results: list[RetrievalEvaluationCaseResponse]
+
+
+class RagQuestionCreate(BaseModel):
+    question: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+    ]
+    top_k: int = Field(default=5, ge=1, le=10)
+
+
+class RagRetrievedSourceResponse(BaseModel):
+    chunk_id: str
+    document_id: str
+    document_name: str
+    page_number: int | None
+    rank: int
+    similarity_score: float
+    content: str
+    embedding_provider: str
+    embedding_model: str
+
+
+class RagCitationResponse(BaseModel):
+    id: str
+    chunk_id: str
+    document_id: str
+    document_name: str
+    page_number: int | None
+    quote: str
+    rank: int
+    similarity_score: float
+    created_at: datetime
+
+
+class RagAnswerResponse(BaseModel):
+    id: str
+    answer_text: str
+    support_status: RagSupportStatus
+    confidence: float | None
+    citations: list[RagCitationResponse]
+    created_at: datetime
+
+
+class RagQuestionResponse(BaseModel):
+    id: str
+    project_id: str
+    document_id: str | None
+    question: str
+    status: RagQuestionStatus
+    retrieval_top_k: int
+    provider: str
+    model: str
+    prompt_version: PromptVersionResponse
+    started_at: datetime | None
+    completed_at: datetime | None
+    latency_ms: int | None
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None
+    error_message: str | None
+    answer: RagAnswerResponse | None
+    retrieved_sources: list[RagRetrievedSourceResponse]
+    created_at: datetime
+    updated_at: datetime

@@ -19,6 +19,13 @@ from assureai_api.extraction_services import (
     list_extraction_runs,
     review_extracted_field,
 )
+from assureai_api.models import RagQuestion
+from assureai_api.rag_services import (
+    RagUnavailableError,
+    create_rag_question,
+    get_rag_question,
+    list_rag_questions,
+)
 from assureai_api.retrieval_services import (
     EmbeddingConflictError,
     EmbeddingUnavailableError,
@@ -40,6 +47,12 @@ from assureai_api.schemas import (
     FieldReviewRequest,
     ProjectCreate,
     ProjectResponse,
+    PromptVersionResponse,
+    RagAnswerResponse,
+    RagCitationResponse,
+    RagQuestionCreate,
+    RagQuestionResponse,
+    RagRetrievedSourceResponse,
     RetrievalEvaluationRequest,
     RetrievalEvaluationRunResponse,
     SemanticSearchRequest,
@@ -76,6 +89,68 @@ def _not_found(exc: NotFoundError) -> HTTPException:
 
 def _conflict(exc: ExtractionConflictError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+def _rag_question_response(question: RagQuestion) -> RagQuestionResponse:
+    sources = [
+        RagRetrievedSourceResponse(
+            chunk_id=item.chunk_id,
+            document_id=item.document_id,
+            document_name=item.document.original_filename,
+            page_number=item.chunk.page_number,
+            rank=item.rank,
+            similarity_score=item.similarity_score,
+            content=item.chunk.content,
+            embedding_provider=item.embedding_provider,
+            embedding_model=item.embedding_model,
+        )
+        for item in sorted(question.retrieved_chunks, key=lambda item: item.rank)
+    ]
+    answer = None
+    if question.answer is not None:
+        answer = RagAnswerResponse(
+            id=question.answer.id,
+            answer_text=question.answer.answer_text,
+            support_status=question.answer.support_status,
+            confidence=question.answer.confidence,
+            citations=[
+                RagCitationResponse(
+                    id=citation.id,
+                    chunk_id=citation.chunk_id,
+                    document_id=citation.document_id,
+                    document_name=citation.document.original_filename,
+                    page_number=citation.page_number,
+                    quote=citation.quote,
+                    rank=citation.rank,
+                    similarity_score=citation.similarity_score,
+                    created_at=citation.created_at,
+                )
+                for citation in sorted(question.answer.citations, key=lambda item: item.rank)
+            ],
+            created_at=question.answer.created_at,
+        )
+    return RagQuestionResponse(
+        id=question.id,
+        project_id=question.project_id,
+        document_id=question.document_id,
+        question=question.question,
+        status=question.status,
+        retrieval_top_k=question.retrieval_top_k,
+        provider=question.provider,
+        model=question.model,
+        prompt_version=PromptVersionResponse.model_validate(question.prompt_version),
+        started_at=question.started_at,
+        completed_at=question.completed_at,
+        latency_ms=question.latency_ms,
+        input_tokens=question.input_tokens,
+        output_tokens=question.output_tokens,
+        total_tokens=question.total_tokens,
+        error_message=question.error_message,
+        answer=answer,
+        retrieved_sources=sources,
+        created_at=question.created_at,
+        updated_at=question.updated_at,
+    )
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -466,3 +541,98 @@ def list_retrieval_evaluation_endpoint(
     except NotFoundError as exc:
         raise _not_found(exc) from exc
     return [RetrievalEvaluationRunResponse.model_validate(run) for run in runs]
+
+
+def _create_question(
+    *,
+    project_id: str,
+    document_id: str | None,
+    payload: RagQuestionCreate,
+    request: Request,
+    session: Session,
+) -> RagQuestionResponse:
+    try:
+        question = create_rag_question(
+            session,
+            settings=request.app.state.settings,
+            enqueue=request.app.state.enqueue_rag_question,
+            project_id=project_id,
+            document_id=document_id,
+            question_text=payload.question,
+            top_k=payload.top_k,
+        )
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except RagUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    return _rag_question_response(question)
+
+
+@router.post(
+    "/projects/{project_id}/questions",
+    response_model=RagQuestionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_project_question_endpoint(
+    project_id: str,
+    payload: RagQuestionCreate,
+    request: Request,
+    session: DbSession,
+) -> RagQuestionResponse:
+    return _create_question(
+        project_id=project_id,
+        document_id=None,
+        payload=payload,
+        request=request,
+        session=session,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/documents/{document_id}/questions",
+    response_model=RagQuestionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_document_question_endpoint(
+    project_id: str,
+    document_id: str,
+    payload: RagQuestionCreate,
+    request: Request,
+    session: DbSession,
+) -> RagQuestionResponse:
+    return _create_question(
+        project_id=project_id,
+        document_id=document_id,
+        payload=payload,
+        request=request,
+        session=session,
+    )
+
+
+@router.get("/projects/{project_id}/questions", response_model=list[RagQuestionResponse])
+def list_questions_endpoint(
+    project_id: str,
+    session: DbSession,
+    document_id: str | None = None,
+) -> list[RagQuestionResponse]:
+    try:
+        questions = list_rag_questions(session, project_id, document_id=document_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return [_rag_question_response(question) for question in questions]
+
+
+@router.get(
+    "/projects/{project_id}/questions/{question_id}",
+    response_model=RagQuestionResponse,
+)
+def get_question_endpoint(
+    project_id: str, question_id: str, session: DbSession
+) -> RagQuestionResponse:
+    try:
+        question = get_rag_question(session, project_id, question_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    return _rag_question_response(question)

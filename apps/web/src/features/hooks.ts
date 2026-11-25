@@ -19,6 +19,8 @@ import {
   semanticSearch,
 } from "../api/retrieval";
 import type { FieldReview } from "../api/types";
+import { createQuestion, getQuestions } from "../api/questions";
+import type { RagQuestion } from "../api/types";
 
 export function useProjects() {
   return useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -196,5 +198,39 @@ export function useRetrievalEvaluations(projectId: string) {
   return useQuery({
     queryKey: ["projects", projectId, "retrieval-evaluations"],
     queryFn: () => getRetrievalEvaluations(projectId),
+  });
+}
+
+export function useRagQuestions(projectId: string, documentId?: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "questions", documentId ?? "project"],
+    queryFn: () => getQuestions(projectId, documentId),
+    refetchInterval: (query) => {
+      const active = query.state.data?.some((question) =>
+        ["QUEUED", "PROCESSING"].includes(question.status),
+      );
+      return active ? 2_000 : false;
+    },
+  });
+}
+
+export function useCreateRagQuestion(projectId: string, documentId?: string) {
+  const client = useQueryClient();
+  const queryKey = [
+    "projects",
+    projectId,
+    "questions",
+    documentId ?? "project",
+  ];
+  return useMutation({
+    mutationFn: ({ question, topK }: { question: string; topK: number }) =>
+      createQuestion(projectId, question, topK, documentId),
+    onSuccess: (created) => {
+      client.setQueryData<RagQuestion[]>(queryKey, (current = []) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ]);
+      void client.invalidateQueries({ queryKey });
+    },
   });
 }

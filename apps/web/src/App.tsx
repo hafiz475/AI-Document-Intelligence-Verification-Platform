@@ -13,7 +13,9 @@ function Layout() {
           <Link className="brand" to="/">
             <span aria-hidden="true">A</span>AssureAI
           </Link>
-          <span className="milestone">Milestone 3 · Semantic retrieval</span>
+          <span className="milestone">
+            Milestone 4 · Evidence-backed Q&amp;A
+          </span>
         </nav>
       </header>
       <main className="container">
@@ -30,7 +32,7 @@ function Layout() {
       </main>
       <footer>
         AssureAI · evidence-first document intelligence · generated answers are
-        not enabled
+        citation validated
       </footer>
     </div>
   );

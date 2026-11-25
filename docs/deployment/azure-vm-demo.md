@@ -262,7 +262,7 @@ Create the untracked environment file directly on the VM:
 
 Never print, share, or commit the populated file.
 
-For Milestone 2 the production Compose default is
+For Milestone 4 the production Compose default is
 ASSUREAI_AI_PROVIDER=development, which makes no external calls. A populated environment
 file may explicitly set the same value.
 
@@ -419,7 +419,44 @@ Milestone 2 extraction still reaches COMPLETED, then:
 No OpenAI embedding execution should be claimed unless
 ASSUREAI_EMBEDDING_PROVIDER=openai and a valid backend-only key were actually used.
 
-## 18. Current limitations
+## 18. Milestone 4 grounded RAG verification
+
+Migration `20261125_0004` adds questions, exact retrieved-chunk provenance, answers,
+citations, and RAG audit links. The default development answer provider is deterministic
+and offline; it must not be described as live OpenAI RAG.
+
+Use a synthetic document containing:
+
+    Equipment: Cooling Water Pump P-204
+    Observation: Drive-end bearing vibration measured 8.4 mm/s RMS.
+    Expected: Below 4.5 mm/s RMS.
+    Recommended action: Inspect alignment and lubrication before continued service.
+
+After upload is READY and embeddings are COMPLETED:
+
+1. Confirm `/health` and `/ready`.
+2. POST `{"question":"What abnormal condition was detected?","top_k":5}` to
+   `/api/v1/projects/{project_id}/questions`.
+3. Poll the returned question until COMPLETED.
+4. Confirm the answer describes 8.4 mm/s RMS drive-end bearing vibration.
+5. Confirm support_status is SUPPORTED and at least one citation exists.
+6. Confirm the citation chunk ID appears in retrieved_sources, and its document, page,
+   quote, rank, and similarity match.
+7. Ask `What was the motor winding temperature?`.
+8. Confirm COMPLETED, INSUFFICIENT_EVIDENCE, the canonical safe message, and no
+   citations.
+9. Run the local deterministic invalid-citation test before deployment; there is no
+   public endpoint that intentionally bypasses citation validation.
+10. Recheck structured extraction, human review, and semantic search.
+
+Inspect safe lifecycle logs without document text:
+
+    docker compose --env-file .env.production -f docker-compose.prod.yml +      logs --tail 200 worker | grep '"rag\.'
+
+If `ASSUREAI_AI_PROVIDER=openai` was not configured with a valid backend-only key, record
+the verification as deterministic provider RAG only.
+
+## 19. Current limitations
 
 - No user authentication or authorization exists yet.
 - Traffic is HTTP, not HTTPS.

@@ -199,3 +199,65 @@ export interface RetrievalEvaluationRun {
   created_at: string;
   case_results: RetrievalEvaluationCase[];
 }
+
+export type RagQuestionStatus =
+  "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export type RagSupportStatus =
+  "SUPPORTED" | "PARTIALLY_SUPPORTED" | "INSUFFICIENT_EVIDENCE";
+
+export interface RagCitation {
+  id: string;
+  chunk_id: string;
+  document_id: string;
+  document_name: string;
+  page_number: number | null;
+  quote: string;
+  rank: number;
+  similarity_score: number;
+  created_at: string;
+}
+
+export interface RagAnswer {
+  id: string;
+  answer_text: string;
+  support_status: RagSupportStatus;
+  confidence: number | null;
+  citations: RagCitation[];
+  created_at: string;
+}
+
+export interface RagRetrievedSource {
+  chunk_id: string;
+  document_id: string;
+  document_name: string;
+  page_number: number | null;
+  rank: number;
+  similarity_score: number;
+  content: string;
+  embedding_provider: string;
+  embedding_model: string;
+}
+
+export interface RagQuestion {
+  id: string;
+  project_id: string;
+  document_id: string | null;
+  question: string;
+  status: RagQuestionStatus;
+  retrieval_top_k: number;
+  provider: string;
+  model: string;
+  prompt_version: PromptVersion;
+  started_at: string | null;
+  completed_at: string | null;
+  latency_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  error_message: string | null;
+  answer: RagAnswer | null;
+  retrieved_sources: RagRetrievedSource[];
+  created_at: string;
+  updated_at: string;
+}

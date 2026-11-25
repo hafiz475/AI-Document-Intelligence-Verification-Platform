@@ -8,6 +8,7 @@ import {
 } from "../../components/States";
 import { useDocument, useDocumentChunks } from "../hooks";
 import { SemanticSearchPanel } from "../SemanticSearchPanel";
+import { RagQuestionPanel } from "../RagQuestionPanel";
 import { EmbeddingPanel } from "./EmbeddingPanel";
 import { ExtractionPanel } from "./ExtractionPanel";
 
@@ -86,6 +87,7 @@ export function DocumentDetailPage() {
           <ExtractionPanel documentId={documentId} projectId={projectId} />
           <EmbeddingPanel documentId={documentId} projectId={projectId} />
           <SemanticSearchPanel documentId={documentId} projectId={projectId} />
+          <RagQuestionPanel documentId={documentId} projectId={projectId} />
           <div className="section-heading">
             <h2>Extracted chunks</h2>
             <p>{chunks.data?.total ?? 0} deterministic text chunks</p>

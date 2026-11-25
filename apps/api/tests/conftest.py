@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from docx import Document as DocxDocument
+from docx import Document as DocxDocument  # type: ignore[import-untyped]
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
@@ -81,6 +81,11 @@ def queued_embeddings() -> list[str]:
 
 
 @pytest.fixture
+def queued_rag_questions() -> list[str]:
+    return []
+
+
+@pytest.fixture
 def client(
     engine: Engine,
     database_url: str,
@@ -88,6 +93,7 @@ def client(
     queued_documents: list[str],
     queued_extractions: list[str],
     queued_embeddings: list[str],
+    queued_rag_questions: list[str],
 ) -> Iterator[TestClient]:
     settings = Settings(
         environment="test",
@@ -103,6 +109,7 @@ def client(
         enqueue_document=lambda document_id: queued_documents.append(document_id),
         enqueue_extraction=lambda run_id: queued_extractions.append(run_id),
         enqueue_embedding=lambda run_id: queued_embeddings.append(run_id),
+        enqueue_rag_question=lambda question_id: queued_rag_questions.append(question_id),
     )
     with TestClient(application) as test_client:
         yield test_client

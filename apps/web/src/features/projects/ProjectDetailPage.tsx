@@ -9,6 +9,7 @@ import {
 } from "../../components/States";
 import { useDocuments, useProject, useUploadDocument } from "../hooks";
 import { RetrievalEvaluationPanel } from "../RetrievalEvaluationPanel";
+import { RagQuestionPanel } from "../RagQuestionPanel";
 import { SemanticSearchPanel } from "../SemanticSearchPanel";
 
 function formatBytes(value: number) {
@@ -54,6 +55,7 @@ export function ProjectDetailPage() {
       )}
 
       <SemanticSearchPanel projectId={projectId} />
+      <RagQuestionPanel projectId={projectId} />
 
       <div className="section-heading">
         <h2>Documents</h2>

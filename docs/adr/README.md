@@ -19,3 +19,8 @@ ADRs capture decisions that are costly or confusing to rediscover. Use sequentia
 - [0015: Cosine similarity for semantic retrieval](0015-cosine-similarity-retrieval.md)
 - [0016: Transactional active-vector replacement](0016-transactional-reembedding.md)
 - [0017: Deterministic retrieval-only evaluation](0017-retrieval-evaluation-metrics.md)
+- [0018: Queue RAG orchestration through the existing worker](0018-rag-orchestration.md)
+- [0019: Render deterministic controlled evidence context](0019-controlled-rag-context.md)
+- [0020: Treat provider citations as untrusted claims](0020-rag-citation-validation.md)
+- [0021: Make insufficient evidence a successful safe outcome](0021-insufficient-evidence.md)
+- [0022: Separate instructions from retrieved document data](0022-rag-prompt-injection-boundary.md)

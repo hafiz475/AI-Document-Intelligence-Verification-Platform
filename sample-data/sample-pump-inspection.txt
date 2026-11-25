@@ -1,0 +1,13 @@
+SYNTHETIC DEMO DATA
+ENGINEERING INSPECTION REPORT
+
+Equipment: Cooling Water Pump P-204
+
+Observation:
+Drive-end bearing vibration measured 8.4 mm/s RMS.
+
+Expected:
+Below 4.5 mm/s RMS.
+
+Recommended action:
+Inspect alignment and lubrication before continued service.

@@ -3,8 +3,8 @@
 ## Current system
 
 AssureAI remains a modular monolith with separately runnable web, API, and worker
-processes. Milestone 3 preserves ingestion and structured extraction while adding
-version-safe chunk embeddings, pgvector semantic search, and retrieval-only evaluation.
+processes. Milestone 4 preserves ingestion, extraction, and M3 retrieval while adding
+queued evidence-backed questions, controlled RAG generation, and citation validation.
 
 ```mermaid
 flowchart TB
@@ -21,6 +21,9 @@ flowchart TB
     Worker --> EmbDev[Deterministic development embeddings]
     Worker -. configured .-> OpenAIEmb[OpenAI embeddings]
     API -->|exact cosine search| DB
+    Worker -->|question embedding + scoped retrieval| DB
+    Worker --> RagProvider[Deterministic or OpenAI RAG provider]
+    Worker -->|validated answer + citations| DB
 ```
 
 PostgreSQL uses the pgvector image and the Milestone 3 migration safely enables the
@@ -51,8 +54,8 @@ The dependency direction is:
 HTTP handlers validate transport concerns and map domain errors. Services own
 transactions and workflow orchestration. The worker does not duplicate extraction logic.
 
-The AI provider protocol receives only an immutable prompt and controlled source chunks.
-Vendor response objects do not cross the adapter boundary.
+AI provider protocols receive only immutable prompts and controlled source data. Vendor
+response objects do not cross adapter boundaries.
 
 ## Ingestion flow
 
@@ -108,6 +111,17 @@ The Milestone 3 migration adds:
 One active embedding is allowed per chunk. Historical run metadata is retained, while
 active vectors are replaced only after every batch succeeds.
 
+The Milestone 4 migration adds:
+
+- rag_questions with queue state, scope, provider/model, prompt, latency, and token data
+- question_retrieved_chunks with the exact rank/similarity/provider/model provenance
+- rag_answers with explicit support state and no fabricated numeric confidence
+- rag_citations tied to stored chunks, documents, pages, ranks, similarities, and quotes
+- RAG lifecycle links on audit_events
+
+Project-level questions use a nullable document scope. Citation and retrieved-chunk
+foreign keys use RESTRICT so historical answer provenance cannot silently disappear.
+
 ## Embedding and retrieval flow
 
 1. A user explicitly requests embeddings for a READY document.
@@ -129,6 +143,35 @@ approximate vector index is used because the demo corpus is small.
 Retrieval evaluation accepts explicit relevant chunk IDs, executes real stored searches,
 and persists per-case rank, hit, recall, and reciprocal rank plus aggregate Hit@K,
 Recall@K, and MRR.
+
+## Evidence-backed RAG flow
+
+1. The API verifies project and optional document scope, assigns immutable RAG Prompt
+   v1, records the configured answer provider/model, commits QUEUED, and enqueues.
+2. The worker sets PROCESSING and embeds the question with the existing embedding
+   provider.
+3. The existing M3 semantic search executes with project, optional document, provider,
+   model, and dimension filters.
+4. Every ranked chunk is persisted before generation with rank, similarity, and
+   embedding identity.
+5. Context is rendered deterministically as explicit SOURCE blocks. Retrieved text is
+   delimited as untrusted data, separate from system instructions and the user question.
+6. The configured RAG adapter returns the strict Pydantic answer contract.
+7. Application validation checks every citation against the database and exact
+   persisted retrieval set. Quotes must be normalized exact substrings.
+8. SUPPORTED and PARTIALLY_SUPPORTED require at least one valid citation.
+   INSUFFICIENT_EVIDENCE permits no citations and uses a canonical safe answer.
+9. Answer, citations, completion metadata, and safe audit events commit together.
+10. Provider, schema, retrieval, or citation failures commit FAILED without persisting
+    an untrusted answer.
+
+The deterministic development provider is an offline test/demo implementation and is
+not described as LLM execution. It selects only text present in supplied context.
+
+Prompt-injection defenses separate system instructions, the user question, and
+retrieved evidence, and explicitly deny document instructions authority. These controls
+reduce risk but cannot eliminate prompt injection; post-generation citation validation
+limits what can be presented as grounded.
 
 ## Structured extraction flow
 
@@ -156,6 +199,10 @@ also project-scoped. Storage keys never cross the HTTP boundary.
 Authentication and user ownership are deferred, so Milestone 1 isolation protects
 project boundaries within the current unauthenticated application but is not a complete
 multi-tenant authorization system.
+
+RAG carries the same boundary through question creation, retrieval SQL, persisted
+provenance, question reads, and citation validation. A chunk from another project is
+rejected even if a provider returns its valid identifier and quote.
 
 ## Text preparation
 

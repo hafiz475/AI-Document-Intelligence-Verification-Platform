@@ -355,6 +355,7 @@ tbody tr:hover {
   color: #fde68a;
 }
 .status-unsupported,
+.status-insufficient_evidence,
 .status-rejected {
   background: #450a0a;
   border-color: #dc2626;
@@ -569,12 +570,117 @@ tbody tr:hover {
 
 .embedding-panel,
 .semantic-search,
-.retrieval-evaluation {
+.retrieval-evaluation,
+.rag-panel {
   background: #0a1524;
   border: 1px solid #26364a;
   border-radius: 0.9rem;
   margin-top: 2rem;
   padding: 1.25rem;
+}
+
+.rag-form {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(240px, 1fr) 100px auto;
+}
+.rag-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+.rag-answer {
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  border-radius: 0.8rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+}
+.rag-answer > header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+.rag-answer h3 {
+  margin: 0.25rem 0;
+}
+.answer-text {
+  color: #f8fafc;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+.rag-citations ol,
+.retrieved-sources ol,
+.question-history ol {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+.rag-citations li,
+.retrieved-sources li {
+  background: #07111f;
+  border: 1px solid #1e293b;
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+}
+.rag-citations summary,
+.retrieved-sources > summary {
+  color: #67e8f9;
+  cursor: pointer;
+  font-weight: 700;
+}
+.rag-citations blockquote {
+  border-left: 3px solid #38bdf8;
+  color: #cbd5e1;
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+}
+.rag-citations code,
+.retrieved-sources code {
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+.retrieved-sources {
+  border-top: 1px solid #26364a;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+.retrieved-sources li header {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+.retrieved-sources li p {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.question-history {
+  margin-top: 1.5rem;
+}
+.history-button {
+  align-items: center;
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  color: #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  width: 100%;
+}
+.history-button[aria-pressed="true"] {
+  border-color: #22d3ee;
+}
+.history-button > span:last-child {
+  align-items: flex-end;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+.history-button time {
+  color: #64748b;
+  font-size: 0.75rem;
 }
 .embedding-summary {
   display: grid;
@@ -686,6 +792,18 @@ tbody tr:hover {
   }
   .search-form {
     grid-template-columns: 1fr;
+  }
+  .rag-form {
+    grid-template-columns: 1fr;
+  }
+  .rag-answer > header,
+  .retrieved-sources li header,
+  .history-button {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .history-button > span:last-child {
+    justify-items: start;
   }
   .evaluation-metrics {
     grid-template-columns: 1fr;

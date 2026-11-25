@@ -1,4 +1,4 @@
-"""Persistence models for document ingestion and structured extraction."""
+"""Persistence models for document intelligence, retrieval, and grounded answers."""
 
 import uuid
 from datetime import UTC, datetime
@@ -10,6 +10,7 @@ from sqlalchemy import (
     JSON,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -63,6 +64,19 @@ class SupportStatus(StrEnum):
     UNSUPPORTED = "UNSUPPORTED"
 
 
+class RagQuestionStatus(StrEnum):
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class RagSupportStatus(StrEnum):
+    SUPPORTED = "SUPPORTED"
+    PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -83,6 +97,9 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan", passive_deletes=True
     )
     retrieval_evaluation_runs: Mapped[list["RetrievalEvaluationRun"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
+    )
+    rag_questions: Mapped[list["RagQuestion"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", passive_deletes=True
     )
 
@@ -128,6 +145,9 @@ class Document(Base):
     chunk_embeddings: Mapped[list["DocumentChunkEmbedding"]] = relationship(
         back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
+    rag_questions: Mapped[list["RagQuestion"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class DocumentChunk(Base):
@@ -157,6 +177,12 @@ class DocumentChunk(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         uselist=False,
+    )
+    rag_retrievals: Mapped[list["QuestionRetrievedChunk"]] = relationship(
+        back_populates="chunk", passive_deletes=True
+    )
+    rag_citations: Mapped[list["RagCitation"]] = relationship(
+        back_populates="chunk", passive_deletes=True
     )
 
 
@@ -304,6 +330,125 @@ class PromptVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     template: Mapped[PromptTemplate] = relationship(back_populates="versions")
     extraction_runs: Mapped[list["ExtractionRun"]] = relationship(back_populates="prompt_version")
+    rag_questions: Mapped[list["RagQuestion"]] = relationship(back_populates="prompt_version")
+
+
+class RagQuestion(Base):
+    __tablename__ = "rag_questions"
+    __table_args__ = (Index("ix_rag_questions_project_created", "project_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), nullable=True
+    )
+    question: Mapped[str] = mapped_column(Text)
+    status: Mapped[RagQuestionStatus] = mapped_column(
+        Enum(RagQuestionStatus, name="rag_question_status"),
+        default=RagQuestionStatus.QUEUED,
+    )
+    retrieval_top_k: Mapped[int] = mapped_column(Integer)
+    provider: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200))
+    prompt_version_id: Mapped[str] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+    project: Mapped[Project] = relationship(back_populates="rag_questions")
+    document: Mapped[Document | None] = relationship(back_populates="rag_questions")
+    prompt_version: Mapped[PromptVersion] = relationship(back_populates="rag_questions")
+    answer: Mapped["RagAnswer | None"] = relationship(
+        back_populates="question", cascade="all, delete-orphan", passive_deletes=True, uselist=False
+    )
+    retrieved_chunks: Mapped[list["QuestionRetrievedChunk"]] = relationship(
+        back_populates="question", cascade="all, delete-orphan", passive_deletes=True
+    )
+    audit_events: Mapped[list["AuditEvent"]] = relationship(
+        back_populates="rag_question", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class QuestionRetrievedChunk(Base):
+    __tablename__ = "question_retrieved_chunks"
+    __table_args__ = (
+        UniqueConstraint("question_id", "chunk_id", name="uq_question_retrieved_chunk"),
+        UniqueConstraint("question_id", "rank", name="uq_question_retrieved_rank"),
+        Index("ix_question_retrieved_question", "question_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("rag_questions.id", ondelete="CASCADE"), nullable=False
+    )
+    chunk_id: Mapped[str] = mapped_column(
+        ForeignKey("document_chunks.id", ondelete="RESTRICT"), nullable=False
+    )
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="RESTRICT"), nullable=False
+    )
+    rank: Mapped[int] = mapped_column(Integer)
+    similarity_score: Mapped[float] = mapped_column(Float)
+    embedding_provider: Mapped[str] = mapped_column(String(100))
+    embedding_model: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    question: Mapped[RagQuestion] = relationship(back_populates="retrieved_chunks")
+    chunk: Mapped[DocumentChunk] = relationship(back_populates="rag_retrievals")
+    document: Mapped[Document] = relationship()
+
+
+class RagAnswer(Base):
+    __tablename__ = "rag_answers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("rag_questions.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    answer_text: Mapped[str] = mapped_column(Text)
+    support_status: Mapped[RagSupportStatus] = mapped_column(
+        Enum(RagSupportStatus, name="rag_support_status")
+    )
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    question: Mapped[RagQuestion] = relationship(back_populates="answer")
+    citations: Mapped[list["RagCitation"]] = relationship(
+        back_populates="answer", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class RagCitation(Base):
+    __tablename__ = "rag_citations"
+    __table_args__ = (Index("ix_rag_citations_answer", "answer_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    answer_id: Mapped[str] = mapped_column(
+        ForeignKey("rag_answers.id", ondelete="CASCADE"), nullable=False
+    )
+    chunk_id: Mapped[str] = mapped_column(
+        ForeignKey("document_chunks.id", ondelete="RESTRICT"), nullable=False
+    )
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="RESTRICT"), nullable=False
+    )
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str] = mapped_column(Text)
+    rank: Mapped[int] = mapped_column(Integer)
+    similarity_score: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    answer: Mapped[RagAnswer] = relationship(back_populates="citations")
+    chunk: Mapped[DocumentChunk] = relationship(back_populates="rag_citations")
+    document: Mapped[Document] = relationship()
 
 
 class ExtractionRun(Base):
@@ -413,8 +558,8 @@ class AuditEvent(Base):
     project_id: Mapped[str] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    document_id: Mapped[str] = mapped_column(
-        ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), nullable=True
     )
     extraction_run_id: Mapped[str | None] = mapped_column(
         ForeignKey("extraction_runs.id", ondelete="CASCADE"), nullable=True
@@ -422,8 +567,12 @@ class AuditEvent(Base):
     extracted_field_id: Mapped[str | None] = mapped_column(
         ForeignKey("extracted_fields.id", ondelete="CASCADE"), nullable=True
     )
+    rag_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("rag_questions.id", ondelete="CASCADE"), nullable=True
+    )
     event_type: Mapped[str] = mapped_column(String(100))
     event_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict)
     reviewer: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     extraction_run: Mapped[ExtractionRun | None] = relationship(back_populates="audit_events")
+    rag_question: Mapped[RagQuestion | None] = relationship(back_populates="audit_events")
