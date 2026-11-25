@@ -21,6 +21,16 @@ import {
 import type { FieldReview } from "../api/types";
 import { createQuestion, getQuestions } from "../api/questions";
 import type { RagQuestion } from "../api/types";
+import {
+  compareEvaluationRuns,
+  createEvaluationCase,
+  createEvaluationDataset,
+  createEvaluationRun,
+  getEvaluationDatasets,
+  getEvaluationRuns,
+  updateEvaluationCase,
+} from "../api/evaluations";
+import type { CaseInput, DatasetInput, RunInput } from "../api/evaluations";
 
 export function useProjects() {
   return useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -232,5 +242,77 @@ export function useCreateRagQuestion(projectId: string, documentId?: string) {
       ]);
       void client.invalidateQueries({ queryKey });
     },
+  });
+}
+
+export function useEvaluationDatasets(projectId: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "evaluation-datasets"],
+    queryFn: () => getEvaluationDatasets(projectId),
+  });
+}
+
+export function useCreateEvaluationDataset(projectId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: DatasetInput) =>
+      createEvaluationDataset(projectId, payload),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: ["projects", projectId, "evaluation-datasets"],
+      }),
+  });
+}
+
+export function useSaveEvaluationCase(projectId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      datasetId,
+      caseId,
+      payload,
+    }: {
+      datasetId: string;
+      caseId?: string;
+      payload: CaseInput;
+    }) =>
+      caseId
+        ? updateEvaluationCase(projectId, datasetId, caseId, payload)
+        : createEvaluationCase(projectId, datasetId, payload),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: ["projects", projectId, "evaluation-datasets"],
+      }),
+  });
+}
+
+export function useEvaluationRuns(projectId: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "evaluation-runs"],
+    queryFn: () => getEvaluationRuns(projectId),
+    refetchInterval: (query) =>
+      query.state.data?.some((run) =>
+        ["QUEUED", "PROCESSING"].includes(run.status),
+      )
+        ? 2_000
+        : false,
+  });
+}
+
+export function useCreateEvaluationRun(projectId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RunInput) => createEvaluationRun(projectId, payload),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: ["projects", projectId, "evaluation-runs"],
+      }),
+  });
+}
+
+export function useCompareEvaluationRuns(projectId: string) {
+  return useMutation({
+    mutationFn: ({ runAId, runBId }: { runAId: string; runBId: string }) =>
+      compareEvaluationRuns(projectId, runAId, runBId),
   });
 }

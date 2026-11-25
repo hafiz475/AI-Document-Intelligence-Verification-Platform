@@ -3,6 +3,7 @@
 from assureai_api.queue import (
     process_document_actor,
     process_embedding_actor,
+    process_evaluation_actor,
     process_extraction_actor,
     process_rag_question_actor,
 )
@@ -10,6 +11,7 @@ from assureai_api.queue import (
 __all__ = [
     "process_document_actor",
     "process_embedding_actor",
+    "process_evaluation_actor",
     "process_extraction_actor",
     "process_rag_question_actor",
 ]

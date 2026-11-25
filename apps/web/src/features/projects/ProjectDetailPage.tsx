@@ -43,6 +43,14 @@ export function ProjectDetailPage() {
           <span>documents</span>
         </div>
       </div>
+      <p>
+        <Link
+          className="button secondary"
+          to={`/projects/${projectId}/evaluations`}
+        >
+          Open Evaluations
+        </Link>
+      </p>
       <FileUpload
         busy={upload.isPending}
         onUpload={(file) => upload.mutate(file)}

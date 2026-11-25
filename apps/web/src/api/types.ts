@@ -261,3 +261,97 @@ export interface RagQuestion {
   created_at: string;
   updated_at: string;
 }
+
+export type EvaluationType = "EXTRACTION" | "RETRIEVAL" | "RAG";
+export type EvaluationRunStatus =
+  "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type EvaluationResultStatus = "PASSED" | "FAILED" | "ERROR";
+
+export interface EvaluationCase {
+  id: string;
+  dataset_id: string;
+  name: string;
+  input_json: Record<string, unknown>;
+  expected_json: Record<string, unknown>;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvaluationDataset {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  evaluation_type: EvaluationType;
+  case_count: number;
+  cases: EvaluationCase[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvaluationCaseResult {
+  id: string;
+  evaluation_run_id: string;
+  evaluation_case_id: string;
+  status: EvaluationResultStatus;
+  score: number | null;
+  metrics_json: Record<string, unknown>;
+  case_snapshot_json: Record<string, unknown>;
+  actual_output_json: Record<string, unknown>;
+  error_message: string | null;
+  latency_ms: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  created_at: string;
+}
+
+export interface EvaluationRun {
+  id: string;
+  project_id: string;
+  dataset_id: string;
+  evaluation_type: EvaluationType;
+  status: EvaluationRunStatus;
+  prompt_version_id: string | null;
+  provider: string;
+  model: string;
+  embedding_provider: string | null;
+  embedding_model: string | null;
+  evaluator_version: string;
+  configuration_json: Record<string, unknown>;
+  aggregate_metrics_json: Record<string, unknown>;
+  started_at: string | null;
+  completed_at: string | null;
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
+  error_cases: number;
+  average_score: number | null;
+  average_latency_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  error_message: string | null;
+  case_results: EvaluationCaseResult[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetricComparison {
+  metric: string;
+  run_a: number | null;
+  run_b: number | null;
+  delta: number | null;
+}
+
+export interface EvaluationComparison {
+  run_a_id: string;
+  run_b_id: string;
+  dataset_id: string;
+  embedding_compatible: boolean;
+  status: "PASS" | "WARNING" | "REGRESSION";
+  metrics: MetricComparison[];
+  latency_regression_percent: number;
+  token_regression_percent: number;
+}

@@ -22,7 +22,7 @@ from assureai_api.models import (
     RagSupportStatus,
     utc_now,
 )
-from assureai_api.prompts import ensure_rag_prompt_v1
+from assureai_api.prompts import ensure_rag_prompt_v1, get_prompt_version
 from assureai_api.rag_contracts import (
     RagAnswerOutput,
     RagAnswerProvider,
@@ -79,6 +79,7 @@ def create_rag_question(
     document_id: str | None,
     question_text: str,
     top_k: int,
+    prompt_version_id: str | None = None,
 ) -> RagQuestion:
     get_project(session, project_id)
     if document_id is not None:
@@ -89,7 +90,15 @@ def create_rag_question(
         raise RagUnavailableError("RAG answer generation is disabled by configuration.")
 
     provider, model = rag_provider_identity(settings)
-    prompt_version = ensure_rag_prompt_v1(session)
+    default_prompt = ensure_rag_prompt_v1(session)
+    prompt_version = (
+        get_prompt_version(session, prompt_version_id) if prompt_version_id else default_prompt
+    )
+    if (
+        prompt_version is None
+        or prompt_version.prompt_template_id != default_prompt.prompt_template_id
+    ):
+        raise RagUnavailableError("Prompt version is not a RAG answer prompt.")
     question = RagQuestion(
         project_id=project_id,
         document_id=document_id,

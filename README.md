@@ -1,12 +1,12 @@
 # AssureAI
 
 AssureAI is a document-intelligence application for traceable technical-assurance
-workflows. Milestone 4 adds evidence-backed retrieval-augmented generation with
-project-isolated retrieval, strict structured answers, and application-validated citations.
+workflows. Milestone 5 adds persisted, reproducible evaluation for extraction,
+retrieval, RAG, grounding, prompt/model comparison, and regression tracking.
 
-> **Status:** Milestones 0-4 are implemented. The default demo uses deterministic,
+> **Status:** Milestones 0-5 are implemented. The default demo uses deterministic,
 > offline development providers and does not represent real LLM execution. Chat,
-> agents, OCR, and the full evaluation framework remain planned.
+> agents, OCR, and production hardening remain planned.
 
 ## Implemented
 
@@ -48,12 +48,18 @@ project-isolated retrieval, strict structured answers, and application-validated
 - Reject invented, unretrieved, cross-project, wrong-document/page, and fabricated-quote citations.
 - Distinguish SUPPORTED, PARTIALLY_SUPPORTED, and INSUFFICIENT_EVIDENCE answers.
 - Display answer history, support labels, citations, snippets, and all retrieved sources.
+- Persist project-scoped typed extraction, retrieval, and RAG evaluation datasets.
+- Execute bounded evaluation runs through the production extraction, search, and RAG paths.
+- Measure versioned deterministic field, evidence, retrieval, support, citation, phrase,
+  groundedness, latency, and token metrics.
+- Snapshot cases and record prompt, provider/model, embedding, workflow, and evaluator provenance.
+- Compare completed runs with measured deltas and PASS, WARNING, or REGRESSION thresholds.
+- Inspect datasets, cases, run history, per-type metrics, provenance, and comparisons in React.
 
 ## Planned, not implemented
 
 - Conversation/chat, agents, and general tool calling
 - OCR and image-only document processing
-- Full AI evaluation framework and evaluation operations dashboard
 - Authentication and multi-user authorization
 - Production object storage
 
@@ -166,6 +172,16 @@ Grounded question endpoints:
 - POST /api/v1/projects/{project_id}/documents/{document_id}/questions
 - GET /api/v1/projects/{project_id}/questions
 - GET /api/v1/projects/{project_id}/questions/{question_id}
+
+Evaluation endpoints:
+
+- POST/GET /api/v1/projects/{project_id}/evaluation-datasets
+- GET /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}
+- POST/GET /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}/cases
+- PATCH /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}/cases/{case_id}
+- POST/GET /api/v1/projects/{project_id}/evaluation-runs
+- GET /api/v1/projects/{project_id}/evaluation-runs/{run_id}
+- POST /api/v1/projects/{project_id}/evaluation-comparisons
 
 See [docs/api.md](docs/api.md) for request and response contracts.
 
@@ -298,18 +314,18 @@ container structure, and UTF-8 decoding. Original filenames are display metadata
 Project scope is carried through document and chunk queries. Uploaded contents and
 secrets are ignored by version control and are never logged.
 
-Milestone 4 has no authentication, malware scanning, OCR, encrypted object storage,
+Milestone 5 has no authentication, malware scanning, OCR, encrypted object storage,
 distributed storage adapter, conversation memory, agents, or web search. Prompt-injection
 risk is reduced through instruction/data separation and citation validation but is not
 eliminated. Image-only PDFs fail cleanly when no extractable text is found. Local
 filesystem storage and deterministic providers are intended for development and the
 single-host demo.
 
-## Recommended Milestone 5
+## Recommended Milestone 6
 
-Add an AI evaluation framework covering extraction, retrieval, and RAG evaluation,
-prompt/model comparison, and regression tracking. Do not add autonomous agents as part
-of that milestone.
+Add production authentication and project membership/RBAC, storage and secret
+hardening, rate limiting, OpenTelemetry, metrics and alerts, backup/restore, and
+HTTPS/domain readiness.
 
 ## License
 

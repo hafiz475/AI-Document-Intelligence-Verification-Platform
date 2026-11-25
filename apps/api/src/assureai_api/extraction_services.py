@@ -28,7 +28,7 @@ from assureai_api.models import (
     SupportStatus,
     utc_now,
 )
-from assureai_api.prompts import ensure_inspection_prompt_v1
+from assureai_api.prompts import ensure_inspection_prompt_v1, get_prompt_version
 from assureai_api.services import NotFoundError, get_document
 
 logger = logging.getLogger(__name__)
@@ -75,6 +75,7 @@ def create_extraction_run(
     enqueue: Callable[[str], object],
     project_id: str,
     document_id: str,
+    prompt_version_id: str | None = None,
 ) -> ExtractionRun:
     document = get_document(session, project_id, document_id)
     if document.status != DocumentStatus.READY:
@@ -82,7 +83,15 @@ def create_extraction_run(
     if settings.ai_provider == "disabled":
         raise ExtractionUnavailableError("AI extraction is disabled by configuration.")
 
-    prompt_version = ensure_inspection_prompt_v1(session)
+    default_prompt = ensure_inspection_prompt_v1(session)
+    prompt_version = (
+        get_prompt_version(session, prompt_version_id) if prompt_version_id else default_prompt
+    )
+    if (
+        prompt_version is None
+        or prompt_version.prompt_template_id != default_prompt.prompt_template_id
+    ):
+        raise ExtractionConflictError("Prompt version is not an extraction prompt.")
     provider, model = provider_identity(settings)
     run = ExtractionRun(
         project_id=project_id,

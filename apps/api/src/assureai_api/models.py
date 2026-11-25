@@ -77,6 +77,25 @@ class RagSupportStatus(StrEnum):
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
+class EvaluationType(StrEnum):
+    EXTRACTION = "EXTRACTION"
+    RETRIEVAL = "RETRIEVAL"
+    RAG = "RAG"
+
+
+class EvaluationRunStatus(StrEnum):
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class EvaluationCaseResultStatus(StrEnum):
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    ERROR = "ERROR"
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -102,6 +121,156 @@ class Project(Base):
     rag_questions: Mapped[list["RagQuestion"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", passive_deletes=True
     )
+    evaluation_datasets: Mapped[list["EvaluationDataset"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
+    )
+    evaluation_runs: Mapped[list["EvaluationRun"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class EvaluationDataset(Base):
+    __tablename__ = "evaluation_datasets"
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_evaluation_dataset_project_name"),
+        Index("ix_evaluation_datasets_project_type", "project_id", "evaluation_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evaluation_type: Mapped[EvaluationType] = mapped_column(
+        Enum(EvaluationType, name="evaluation_type", native_enum=False)
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+    project: Mapped[Project] = relationship(back_populates="evaluation_datasets")
+    cases: Mapped[list["EvaluationCase"]] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", passive_deletes=True
+    )
+    runs: Mapped[list["EvaluationRun"]] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class EvaluationCase(Base):
+    __tablename__ = "evaluation_cases"
+    __table_args__ = (Index("ix_evaluation_cases_dataset_created", "dataset_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    input_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    expected_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+    dataset: Mapped[EvaluationDataset] = relationship(back_populates="cases")
+    results: Mapped[list["EvaluationCaseResult"]] = relationship(
+        back_populates="evaluation_case", passive_deletes=True
+    )
+
+
+class EvaluationRun(Base):
+    __tablename__ = "evaluation_runs"
+    __table_args__ = (
+        Index("ix_evaluation_runs_project_created", "project_id", "created_at"),
+        Index("ix_evaluation_runs_dataset_created", "dataset_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    evaluation_type: Mapped[EvaluationType] = mapped_column(
+        Enum(EvaluationType, name="evaluation_type", native_enum=False)
+    )
+    status: Mapped[EvaluationRunStatus] = mapped_column(
+        Enum(EvaluationRunStatus, name="evaluation_run_status", native_enum=False),
+        default=EvaluationRunStatus.QUEUED,
+    )
+    prompt_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="RESTRICT"), nullable=True
+    )
+    provider: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200))
+    embedding_provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    evaluator_version: Mapped[str] = mapped_column(String(50))
+    configuration_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    aggregate_metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    total_cases: Mapped[int] = mapped_column(Integer, default=0)
+    passed_cases: Mapped[int] = mapped_column(Integer, default=0)
+    failed_cases: Mapped[int] = mapped_column(Integer, default=0)
+    error_cases: Mapped[int] = mapped_column(Integer, default=0)
+    average_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    average_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+    project: Mapped[Project] = relationship(back_populates="evaluation_runs")
+    dataset: Mapped[EvaluationDataset] = relationship(back_populates="runs")
+    prompt_version: Mapped["PromptVersion | None"] = relationship()
+    case_results: Mapped[list["EvaluationCaseResult"]] = relationship(
+        back_populates="evaluation_run", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class EvaluationCaseResult(Base):
+    __tablename__ = "evaluation_case_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "evaluation_run_id", "evaluation_case_id", name="uq_evaluation_result_run_case"
+        ),
+        Index("ix_evaluation_case_results_run", "evaluation_run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    evaluation_run_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    evaluation_case_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_cases.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[EvaluationCaseResultStatus] = mapped_column(
+        Enum(
+            EvaluationCaseResultStatus,
+            name="evaluation_case_result_status",
+            native_enum=False,
+            length=10,
+        )
+    )
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    case_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    actual_output_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    evaluation_run: Mapped[EvaluationRun] = relationship(back_populates="case_results")
+    evaluation_case: Mapped[EvaluationCase] = relationship(back_populates="results")
 
 
 class Document(Base):

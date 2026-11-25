@@ -44,6 +44,12 @@ jobs:
       - run: alembic upgrade head
         env:
           ASSUREAI_DATABASE_URL: sqlite:///./migration-check.db
+      - name: Validate M4 to M5 upgrade migration
+        run: |
+          alembic upgrade 20261125_0004
+          alembic upgrade head
+        env:
+          ASSUREAI_DATABASE_URL: sqlite:///./upgrade-check.db
       - name: Validate PostgreSQL pgvector migration
         run: alembic upgrade head
         env:
@@ -62,6 +68,7 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+      - run: npm audit --audit-level=moderate
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck

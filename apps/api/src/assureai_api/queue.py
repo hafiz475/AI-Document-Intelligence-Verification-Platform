@@ -7,6 +7,7 @@ from assureai_api.ai_providers import create_ai_provider
 from assureai_api.config import get_settings
 from assureai_api.database import create_database_engine, create_session_factory
 from assureai_api.embedding_providers import create_embedding_provider
+from assureai_api.evaluation_services import process_evaluation_run
 from assureai_api.extraction_services import process_extraction_run
 from assureai_api.rag_providers import create_rag_provider
 from assureai_api.rag_services import process_rag_question
@@ -92,3 +93,18 @@ def process_rag_question_actor(question_id: str) -> None:
 
 def enqueue_rag_question(question_id: str) -> object:
     return process_rag_question_actor.send(question_id)
+
+
+@dramatiq.actor(max_retries=1, min_backoff=2000)
+def process_evaluation_actor(run_id: str) -> None:
+    if not settings.database_url:
+        raise RuntimeError("ASSUREAI_DATABASE_URL is required by the evaluation worker.")
+    engine = create_database_engine(settings.database_url)
+    session_factory = create_session_factory(engine)
+    with session_factory() as session:
+        process_evaluation_run(session, settings=settings, run_id=run_id)
+    engine.dispose()
+
+
+def enqueue_evaluation(run_id: str) -> object:
+    return process_evaluation_actor.send(run_id)

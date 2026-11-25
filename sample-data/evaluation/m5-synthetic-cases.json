@@ -1,0 +1,59 @@
+{
+  "note": "Synthetic engineering inspection examples. Replace IDs after uploading and embedding the sample document.",
+  "datasets": [
+    {
+      "name": "Synthetic extraction quality",
+      "evaluation_type": "EXTRACTION",
+      "cases": [
+        {
+          "name": "Pump inspection fields",
+          "input_json": {"document_id": "<document-id>"},
+          "expected_json": {
+            "expected_fields": {
+              "asset_id": "P-204",
+              "inspection_date": "2026-11-20"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Synthetic retrieval quality",
+      "evaluation_type": "RETRIEVAL",
+      "cases": [
+        {
+          "name": "Abnormal vibration evidence",
+          "input_json": {"query": "What abnormal vibration was detected?"},
+          "expected_json": {
+            "expected_chunk_ids": ["<chunk-id>"],
+            "expected_document_ids": ["<document-id>"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Synthetic grounded answer quality",
+      "evaluation_type": "RAG",
+      "cases": [
+        {
+          "name": "Supported vibration answer",
+          "input_json": {"question": "What abnormal vibration was measured?"},
+          "expected_json": {
+            "support_status": "SUPPORTED",
+            "required_citation_chunk_ids": ["<chunk-id>"],
+            "required_phrases": ["8.4 mm/s RMS"]
+          }
+        },
+        {
+          "name": "Unknown winding temperature",
+          "input_json": {"question": "What was the motor winding temperature?"},
+          "expected_json": {
+            "support_status": "INSUFFICIENT_EVIDENCE",
+            "forbidden_citation_chunk_ids": [],
+            "forbidden_phrases": ["degrees Celsius"]
+          }
+        }
+      ]
+    }
+  ]
+}

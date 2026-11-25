@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = Field(default=64, ge=8, le=4096)
     embedding_batch_size: int = Field(default=32, ge=1, le=2048)
     openai_embedding_model: str = "text-embedding-3-small"
+    evaluation_max_cases: int = Field(default=200, ge=1, le=500)
 
 
 @lru_cache

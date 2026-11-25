@@ -86,6 +86,11 @@ def queued_rag_questions() -> list[str]:
 
 
 @pytest.fixture
+def queued_evaluations() -> list[str]:
+    return []
+
+
+@pytest.fixture
 def client(
     engine: Engine,
     database_url: str,
@@ -94,6 +99,7 @@ def client(
     queued_extractions: list[str],
     queued_embeddings: list[str],
     queued_rag_questions: list[str],
+    queued_evaluations: list[str],
 ) -> Iterator[TestClient]:
     settings = Settings(
         environment="test",
@@ -110,6 +116,7 @@ def client(
         enqueue_extraction=lambda run_id: queued_extractions.append(run_id),
         enqueue_embedding=lambda run_id: queued_embeddings.append(run_id),
         enqueue_rag_question=lambda question_id: queued_rag_questions.append(question_id),
+        enqueue_evaluation=lambda run_id: queued_evaluations.append(run_id),
     )
     with TestClient(application) as test_client:
         yield test_client

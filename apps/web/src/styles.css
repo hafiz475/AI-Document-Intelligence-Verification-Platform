@@ -760,6 +760,124 @@ tbody tr:hover {
 .evaluation-metrics span {
   color: #94a3b8;
 }
+.evaluation-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(360px, 1.3fr);
+  margin: 1.5rem 0;
+}
+.evaluation-card {
+  background: #091526;
+  border: 1px solid #26364a;
+  border-radius: 0.75rem;
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+}
+.evaluation-grid .evaluation-card {
+  margin: 0;
+}
+.evaluation-form,
+.evaluation-form label,
+.inline-evaluation-form label {
+  display: grid;
+  gap: 0.45rem;
+}
+.evaluation-form {
+  gap: 0.9rem;
+}
+.evaluation-form input,
+.evaluation-form select,
+.evaluation-form textarea,
+.inline-evaluation-form input,
+.inline-evaluation-form select,
+.evaluation-filters input,
+.evaluation-filters select {
+  background: #07111f;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  color: #f8fafc;
+  font: inherit;
+  padding: 0.7rem;
+}
+.evaluation-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  resize: vertical;
+}
+.inline-evaluation-form,
+.evaluation-filters {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.inline-evaluation-form label {
+  min-width: 180px;
+}
+.evaluation-filters {
+  margin-bottom: 1rem;
+}
+.evaluation-filters input {
+  min-width: 240px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  color: #38bdf8;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+.case-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.case-list details {
+  background: #0d1a2a;
+  border: 1px solid #26364a;
+  border-radius: 0.6rem;
+  padding: 0.9rem;
+}
+.case-list summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.case-json-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.case-json-grid pre {
+  background: #07111f;
+  border-radius: 0.4rem;
+  max-height: 360px;
+  overflow: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+.provenance-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.provenance-list dt {
+  color: #94a3b8;
+}
+.provenance-list dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+.comparison-status {
+  border-left: 4px solid #38bdf8;
+  font-weight: 800;
+  padding: 0.7rem;
+}
+.comparison-status.warning {
+  border-color: #fbbf24;
+}
+.comparison-status.regression {
+  border-color: #fb7185;
+}
 
 @media (max-width: 640px) {
   .milestone {
@@ -807,5 +925,13 @@ tbody tr:hover {
   }
   .evaluation-metrics {
     grid-template-columns: 1fr;
+  }
+  .evaluation-grid {
+    grid-template-columns: 1fr;
+  }
+  .inline-evaluation-form,
+  .evaluation-filters {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

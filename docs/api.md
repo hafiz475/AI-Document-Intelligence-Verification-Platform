@@ -88,3 +88,42 @@ An unsupported question completes safely:
 
 Raw provider errors and stack traces are not returned. A FAILED question never exposes
 an unvalidated answer.
+
+## Unified evaluation
+
+All evaluation resources are project scoped:
+
+- POST/GET /api/v1/projects/{project_id}/evaluation-datasets
+- GET /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}
+- POST/GET /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}/cases
+- PATCH /api/v1/projects/{project_id}/evaluation-datasets/{dataset_id}/cases/{case_id}
+- POST/GET /api/v1/projects/{project_id}/evaluation-runs
+- GET /api/v1/projects/{project_id}/evaluation-runs/{run_id}
+- POST /api/v1/projects/{project_id}/evaluation-comparisons
+
+Dataset types are EXTRACTION, RETRIEVAL, and RAG. Case input and expected JSON are
+validated against the selected type and all document/chunk references must belong to the
+project. A run request selects dataset_id, optional prompt/provider/model/embedding
+provenance, and top_k (1-20). The deployment rejects unconfigured providers and fixed
+development-model substitutions.
+
+Runs return QUEUED, PROCESSING, COMPLETED, or FAILED plus counts, average score/latency,
+available token totals, aggregate metrics, exact configuration, evaluator version, and
+PASSED/FAILED/ERROR case results. Each result includes the immutable case snapshot,
+actual output, metrics, latency, available tokens, and a safe error.
+
+Comparison requires two completed runs from the same dataset:
+
+    {
+      "run_a_id": "...",
+      "run_b_id": "...",
+      "thresholds": {
+        "minimum_pass_rate": 0.9,
+        "maximum_latency_regression_percent": 20,
+        "maximum_token_regression_percent": 25
+      },
+      "allow_incompatible_embeddings": false
+    }
+
+The response contains every metric's run A value, run B value, delta, embedding
+compatibility, and advisory PASS, WARNING, or REGRESSION status.

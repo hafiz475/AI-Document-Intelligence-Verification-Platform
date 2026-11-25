@@ -14,6 +14,7 @@ from starlette.responses import Response
 from assureai_api import __version__
 from assureai_api.config import Settings, get_settings
 from assureai_api.database import create_database_engine, create_session_factory
+from assureai_api.evaluation_routes import router as evaluation_router
 from assureai_api.logging import configure_logging
 from assureai_api.routes import router
 from assureai_api.schemas import HealthResponse
@@ -26,6 +27,7 @@ def create_app(
     enqueue_extraction: Callable[[str], object] | None = None,
     enqueue_embedding: Callable[[str], object] | None = None,
     enqueue_rag_question: Callable[[str], object] | None = None,
+    enqueue_evaluation: Callable[[str], object] | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -95,6 +97,11 @@ def create_app(
 
         enqueue_rag_question = default_rag_enqueue
     application.state.enqueue_rag_question = enqueue_rag_question
+    if enqueue_evaluation is None:
+        from assureai_api.queue import enqueue_evaluation as default_evaluation_enqueue
+
+        enqueue_evaluation = default_evaluation_enqueue
+    application.state.enqueue_evaluation = enqueue_evaluation
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,
@@ -127,6 +134,7 @@ def create_app(
         return HealthResponse(status="ready", service="api", version=__version__)
 
     application.include_router(router)
+    application.include_router(evaluation_router)
     return application
 
 

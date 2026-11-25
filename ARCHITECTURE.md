@@ -226,14 +226,30 @@ deterministic preparation, not embedding-aware chunking.
 - Chunk replacement is transactional and safe to repeat.
 - Queue submission failure is recorded as FAILED and returned as service unavailable.
 
+## Unified evaluation flow
+
+EvaluationDataset and EvaluationCase hold project-scoped typed inputs and expected
+outputs. Creating an EvaluationRun snapshots every case and records the exact prompt,
+AI provider/model, embedding configuration, workflow version, top-k, and evaluator
+version. A single Dramatiq actor processes at most 200 cases sequentially through the
+existing extraction, semantic_search, or RAG orchestration services. Case-level failures
+are persisted as ERROR and do not stop later cases; configuration or infrastructure
+failures mark the entire run FAILED.
+
+Deterministic evaluator v1 persists exact/normalized extraction metrics, evidence
+precision/recall, chunk- and document-level retrieval metrics, and RAG support,
+citation, phrase, insufficient-evidence, and groundedness checks. Comparison remains a
+dynamic view over immutable run data. Retrieval/RAG comparisons reject different
+embedding configurations unless the caller explicitly acknowledges incompatibility.
+
 Local filesystem storage is suitable for Compose and a single host. A production
 multi-host deployment requires an object-storage adapter, managed secrets, TLS,
 backups, monitoring, and an explicit migration job.
 
 ## Deferred work
 
-Authentication, RAG answers, generated answer citations, chat, agents, general tool
-calling, OCR, and the full evaluation framework are not implemented in Milestone 3.
+Authentication, chat, agents, general tool calling, OCR, and production hardening are
+deferred. M5 deliberately excludes automatic deployment blocking and LLM-as-judge.
 
 ## Decisions
 
@@ -252,3 +268,9 @@ See [docs/adr](docs/adr), especially:
 - ADR 0015: cosine similarity retrieval
 - ADR 0016: transactional active-vector replacement
 - ADR 0017: deterministic retrieval-only evaluation
+- ADR 0023: unified evaluation framework
+- ADR 0024: deterministic metric definitions
+- ADR 0025: immutable evaluation provenance
+- ADR 0026: prompt/model comparison
+- ADR 0027: advisory regression thresholds
+- ADR 0028: deterministic evaluation before LLM judge

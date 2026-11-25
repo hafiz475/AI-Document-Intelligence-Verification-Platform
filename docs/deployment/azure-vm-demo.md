@@ -456,7 +456,36 @@ Inspect safe lifecycle logs without document text:
 If `ASSUREAI_AI_PROVIDER=openai` was not configured with a valid backend-only key, record
 the verification as deterministic provider RAG only.
 
-## 19. Current limitations
+## 19. Milestone 5 unified evaluation verification
+
+Migration 20261125_0005 creates datasets, typed cases, runs, and case results without
+new PostgreSQL enum types. The evaluation worker is part of the existing worker service.
+The default maximum is 200 cases; set ASSUREAI_EVALUATION_MAX_CASES from 1 to 500 only
+after reviewing VM capacity.
+
+Use sample-data/evaluation/m5-synthetic-cases.json as a template and replace
+document/chunk placeholders with IDs from the deployed synthetic inspection:
+
+1. Create separate EXTRACTION, RETRIEVAL, and RAG datasets and their typed cases.
+2. Queue one run for each dataset and poll until COMPLETED.
+3. Confirm extraction field metrics, retrieval chunk/document Hit@K, Recall@K and MRR,
+   and RAG support/citation/insufficient-evidence metrics persist.
+4. Confirm every run records evaluator v1, provider/model, prompt where applicable,
+   embedding configuration, workflow version, top-k, latency, and available tokens.
+5. Queue the same dataset a second time and compare the two completed runs. Record actual
+   deltas; deterministic runs may legitimately show unchanged quality.
+6. Confirm incompatible embedding comparison requires explicit acknowledgement.
+7. Recheck a supported RAG answer, an insufficient-evidence answer, semantic search,
+   structured extraction, human review, /health, and /ready.
+8. Confirm the deployed .deploy-revision matches the green main commit.
+
+Inspect safe lifecycle logs with:
+
+    docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail 200 worker | grep '"evaluation\.'
+
+Do not describe deterministic provider results as a real-model comparison.
+
+## 20. Current limitations
 
 - No user authentication or authorization exists yet.
 - Traffic is HTTP, not HTTPS.

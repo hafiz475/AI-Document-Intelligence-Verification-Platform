@@ -4,6 +4,7 @@ import { DocumentDetailPage } from "./features/documents/DocumentDetailPage";
 import { CreateProjectPage } from "./features/projects/CreateProjectPage";
 import { ProjectDetailPage } from "./features/projects/ProjectDetailPage";
 import { ProjectListPage } from "./features/projects/ProjectListPage";
+import { EvaluationsPage } from "./features/evaluations/EvaluationsPage";
 
 function Layout() {
   return (
@@ -13,9 +14,7 @@ function Layout() {
           <Link className="brand" to="/">
             <span aria-hidden="true">A</span>AssureAI
           </Link>
-          <span className="milestone">
-            Milestone 4 · Evidence-backed Q&amp;A
-          </span>
+          <span className="milestone">Milestone 5 · Measured AI quality</span>
         </nav>
       </header>
       <main className="container">
@@ -24,6 +23,10 @@ function Layout() {
           <Route element={<CreateProjectPage />} path="/projects/new" />
           <Route element={<ProjectDetailPage />} path="/projects/:projectId" />
           <Route
+            element={<EvaluationsPage />}
+            path="/projects/:projectId/evaluations"
+          />
+          <Route
             element={<DocumentDetailPage />}
             path="/projects/:projectId/documents/:documentId"
           />
@@ -31,8 +34,8 @@ function Layout() {
         </Routes>
       </main>
       <footer>
-        AssureAI · evidence-first document intelligence · generated answers are
-        citation validated
+        AssureAI · evidence-first document intelligence · quality is measured,
+        versioned, and reproducible
       </footer>
     </div>
   );
