@@ -19,7 +19,8 @@ from assureai_api.extraction_services import (
     list_extraction_runs,
     review_extracted_field,
 )
-from assureai_api.models import RagQuestion
+from assureai_api.models import ProjectRole, RagQuestion
+from assureai_api.observability import DOCUMENT_UPLOADS
 from assureai_api.rag_services import (
     RagUnavailableError,
     create_rag_question,
@@ -37,6 +38,7 @@ from assureai_api.retrieval_services import (
     run_retrieval_evaluation,
     semantic_search,
 )
+from assureai_api.scanning import DocumentScanner, ScanRejectedError
 from assureai_api.schemas import (
     ChunkListResponse,
     ChunkResponse,
@@ -59,12 +61,17 @@ from assureai_api.schemas import (
     SemanticSearchResponse,
     SemanticSearchResultResponse,
 )
+from assureai_api.security import record_audit
 from assureai_api.services import (
+    DeletionConflictError,
     DuplicateDocumentError,
     NotFoundError,
     create_project,
+    delete_document,
+    delete_project,
     get_document,
     get_project,
+    get_user_role,
     list_chunks,
     list_documents,
     list_projects,
@@ -77,9 +84,11 @@ router = APIRouter(prefix="/api/v1")
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def _project_response(project: object, document_count: int) -> ProjectResponse:
+def _project_response(
+    project: object, document_count: int, current_role: object
+) -> ProjectResponse:
     return ProjectResponse.model_validate(project).model_copy(
-        update={"document_count": document_count}
+        update={"document_count": document_count, "current_role": current_role}
     )
 
 
@@ -154,23 +163,36 @@ def _rag_question_response(question: RagQuestion) -> RagQuestionResponse:
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_project_endpoint(payload: ProjectCreate, session: DbSession) -> ProjectResponse:
-    project = create_project(session, payload.name, payload.description)
-    return _project_response(project, 0)
+def create_project_endpoint(
+    payload: ProjectCreate, request: Request, session: DbSession
+) -> ProjectResponse:
+    project = create_project(
+        session,
+        payload.name,
+        payload.description,
+        request.state.user.id,
+        request.state.request_id,
+        request.state.trace_id,
+    )
+    return _project_response(project, 0, ProjectRole.OWNER)
 
 
 @router.get("/projects", response_model=list[ProjectResponse])
-def list_projects_endpoint(session: DbSession) -> list[ProjectResponse]:
-    return [_project_response(project, count) for project, count in list_projects(session)]
+def list_projects_endpoint(request: Request, session: DbSession) -> list[ProjectResponse]:
+    return [
+        _project_response(project, count, role)
+        for project, count, role in list_projects(session, request.state.user.id)
+    ]
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
-def get_project_endpoint(project_id: str, session: DbSession) -> ProjectResponse:
+def get_project_endpoint(project_id: str, request: Request, session: DbSession) -> ProjectResponse:
     try:
         project, count = get_project(session, project_id)
     except NotFoundError as exc:
         raise _not_found(exc) from exc
-    return _project_response(project, count)
+    role = get_user_role(session, project_id, request.state.user.id)
+    return _project_response(project, count, role)
 
 
 @router.get("/projects/{project_id}/documents", response_model=list[DocumentResponse])
@@ -195,7 +217,9 @@ async def upload_document_endpoint(
 ) -> DocumentResponse:
     content = await file.read(request.app.state.settings.max_upload_bytes + 1)
     storage: DocumentStorage = request.app.state.storage
+    scanner: DocumentScanner = request.app.state.scanner
     try:
+        scanner.scan(content)
         document = upload_document(
             session=session,
             storage=storage,
@@ -213,7 +237,7 @@ async def upload_document_endpoint(
             status_code=status.HTTP_409_CONFLICT,
             detail={"message": str(exc), "existing_document_id": exc.document_id},
         ) from exc
-    except UploadValidationError as exc:
+    except (UploadValidationError, ScanRejectedError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
@@ -222,7 +246,79 @@ async def upload_document_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The document was saved but processing could not be queued.",
         ) from exc
+    record_audit(
+        session,
+        project_id=project_id,
+        event_type="document.uploaded",
+        actor_user_id=request.state.user.id,
+        request_id=request.state.request_id,
+        trace_id=request.state.trace_id,
+        target_type="document",
+        target_id=document.id,
+        document_id=document.id,
+        metadata={"mime_type": document.mime_type, "size": document.file_size},
+    )
+    session.commit()
+    DOCUMENT_UPLOADS.inc()
     return DocumentResponse.model_validate(document)
+
+
+@router.delete(
+    "/projects/{project_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_document_endpoint(
+    project_id: str, document_id: str, request: Request, session: DbSession
+) -> None:
+    try:
+        delete_document(session, request.app.state.storage, project_id, document_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    except DeletionConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    for event_type in ("storage.object_deleted", "document.deleted"):
+        record_audit(
+            session,
+            project_id=project_id,
+            event_type=event_type,
+            actor_user_id=request.state.user.id,
+            request_id=request.state.request_id,
+            trace_id=request.state.trace_id,
+            target_type="document",
+            target_id=document_id,
+        )
+    session.commit()
+
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project_endpoint(project_id: str, request: Request, session: DbSession) -> None:
+    try:
+        document_ids = delete_project(session, request.app.state.storage, project_id)
+    except NotFoundError as exc:
+        raise _not_found(exc) from exc
+    for document_id in document_ids:
+        record_audit(
+            session,
+            project_id=None,
+            event_type="storage.object_deleted",
+            actor_user_id=request.state.user.id,
+            request_id=request.state.request_id,
+            trace_id=request.state.trace_id,
+            target_type="document",
+            target_id=document_id,
+            metadata={"deleted_project_id": project_id},
+        )
+    record_audit(
+        session,
+        project_id=None,
+        event_type="project.deleted",
+        actor_user_id=request.state.user.id,
+        request_id=request.state.request_id,
+        trace_id=request.state.trace_id,
+        target_type="project",
+        target_id=project_id,
+        metadata={"deleted_document_count": len(document_ids)},
+    )
+    session.commit()
 
 
 @router.get(
@@ -330,6 +426,7 @@ def review_field_endpoint(
     run_id: str,
     field_id: str,
     payload: FieldReviewRequest,
+    request: Request,
     session: DbSession,
 ) -> ExtractedFieldResponse:
     try:
@@ -342,6 +439,14 @@ def review_field_endpoint(
             decision=payload.decision,
             value=payload.value,
             reason=payload.reason,
+            reviewer=(
+                request.state.user.display_name
+                or request.state.user.email
+                or request.state.user.external_subject
+            ),
+            actor_user_id=request.state.user.id,
+            request_id=request.state.request_id,
+            trace_id=request.state.trace_id,
         )
     except NotFoundError as exc:
         raise _not_found(exc) from exc

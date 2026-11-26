@@ -1,5 +1,18 @@
 # AssureAI API
 
+All `/api/v1` routes except the development login/logout adapter require a valid signed
+session or OIDC bearer token. Project routes enforce OWNER/EDITOR/VIEWER membership
+server-side. Errors use `{ "error": { "code", "message", "request_id" } }`.
+
+Identity and membership endpoints:
+
+- `POST /api/v1/auth/development/login` (development/demo only)
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET/POST /api/v1/projects/{project_id}/members` (OWNER)
+- `PATCH/DELETE /api/v1/projects/{project_id}/members/{user_id}` (OWNER)
+- `GET /api/v1/projects/{project_id}/security/config` (OWNER; status only, no values)
+
 The interactive OpenAPI document is served at `/docs`. All document, retrieval, and
 question resources are project scoped.
 

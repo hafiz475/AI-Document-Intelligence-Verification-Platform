@@ -26,11 +26,13 @@ function FieldCard({
   runId,
   projectId,
   documentId,
+  canEdit,
 }: {
   field: ExtractedField;
   runId: string;
   projectId: string;
   documentId: string;
+  canEdit: boolean;
 }) {
   const review = useReviewField(projectId, documentId);
   const [mode, setMode] = useState<"correct" | "reject" | null>(null);
@@ -108,7 +110,7 @@ function FieldCard({
         <p className="muted">No validated evidence.</p>
       )}
 
-      {field.review_status === "UNREVIEWED" && (
+      {canEdit && field.review_status === "UNREVIEWED" && (
         <div className="review-actions">
           <button
             disabled={review.isPending}
@@ -211,10 +213,12 @@ function ExtractionResult({
   run,
   projectId,
   documentId,
+  canEdit,
 }: {
   run: ExtractionRun;
   projectId: string;
   documentId: string;
+  canEdit: boolean;
 }) {
   if (run.status === "QUEUED") {
     return <LoadingState label="AI extraction queued..." />;
@@ -234,6 +238,7 @@ function ExtractionResult({
     <div className="extraction-fields">
       {run.fields.map((field) => (
         <FieldCard
+          canEdit={canEdit}
           documentId={documentId}
           field={field}
           key={field.id}
@@ -248,9 +253,11 @@ function ExtractionResult({
 export function ExtractionPanel({
   projectId,
   documentId,
+  canEdit = true,
 }: {
   projectId: string;
   documentId: string;
+  canEdit?: boolean;
 }) {
   const extractions = useExtractions(projectId, documentId, true);
   const create = useCreateExtraction(projectId, documentId);
@@ -264,13 +271,15 @@ export function ExtractionPanel({
           <p className="eyebrow">Milestone 2</p>
           <h2>AI Extraction</h2>
         </div>
-        <button
-          disabled={Boolean(active) || create.isPending}
-          onClick={() => create.mutate()}
-          type="button"
-        >
-          {create.isPending ? "Queuing..." : "Run AI Extraction"}
-        </button>
+        {canEdit && (
+          <button
+            disabled={Boolean(active) || create.isPending}
+            onClick={() => create.mutate()}
+            type="button"
+          >
+            {create.isPending ? "Queuing..." : "Run AI Extraction"}
+          </button>
+        )}
       </div>
       {create.isError && <ErrorState error={create.error} />}
       {extractions.isLoading && (
@@ -295,6 +304,7 @@ export function ExtractionPanel({
             <StatusBadge status={latest.status} />
           </div>
           <ExtractionResult
+            canEdit={canEdit}
             documentId={documentId}
             projectId={projectId}
             run={latest}

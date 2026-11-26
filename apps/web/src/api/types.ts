@@ -6,8 +6,25 @@ export interface Project {
   name: string;
   description: string | null;
   document_count: number;
+  current_role: ProjectRole;
   created_at: string;
   updated_at: string;
+}
+
+export type ProjectRole = "OWNER" | "EDITOR" | "VIEWER";
+
+export interface CurrentUser {
+  id: string;
+  external_subject: string;
+  email: string | null;
+  display_name: string | null;
+}
+
+export interface ProjectMembership {
+  project_id: string;
+  user: CurrentUser;
+  role: ProjectRole;
+  created_at: string;
 }
 
 export interface DocumentRecord {

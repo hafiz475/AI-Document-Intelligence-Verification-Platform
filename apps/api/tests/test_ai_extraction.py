@@ -262,7 +262,10 @@ def test_verify_correct_reject_preserve_originals_and_create_audit_events(
     assert {"field.verified", "field.corrected", "field.rejected"} <= {
         event["event_type"] for event in payload["audit_events"]
     }
-    assert all(event["reviewer"] is None for event in payload["audit_events"])
+    field_events = [
+        event for event in payload["audit_events"] if event["event_type"].startswith("field.")
+    ]
+    assert all(event["reviewer"] == "Demo Owner" for event in field_events)
 
 
 def test_prompt_version_retained_and_project_document_isolation(

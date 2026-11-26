@@ -9,6 +9,7 @@ from assureai_api.models import (
     DocumentStatus,
     EmbeddingRunStatus,
     ExtractionRunStatus,
+    ProjectRole,
     RagQuestionStatus,
     RagSupportStatus,
     ReviewStatus,
@@ -36,6 +37,7 @@ class ProjectResponse(BaseModel):
     name: str
     description: str | None
     document_count: int = 0
+    current_role: ProjectRole = ProjectRole.VIEWER
     created_at: datetime
     updated_at: datetime
 

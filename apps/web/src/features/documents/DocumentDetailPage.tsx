@@ -6,7 +6,7 @@ import {
   LoadingState,
   StatusBadge,
 } from "../../components/States";
-import { useDocument, useDocumentChunks } from "../hooks";
+import { useDocument, useDocumentChunks, useProject } from "../hooks";
 import { SemanticSearchPanel } from "../SemanticSearchPanel";
 import { RagQuestionPanel } from "../RagQuestionPanel";
 import { EmbeddingPanel } from "./EmbeddingPanel";
@@ -14,6 +14,7 @@ import { ExtractionPanel } from "./ExtractionPanel";
 
 export function DocumentDetailPage() {
   const { projectId = "", documentId = "" } = useParams();
+  const project = useProject(projectId);
   const document = useDocument(projectId, documentId);
   const chunks = useDocumentChunks(
     projectId,
@@ -21,10 +22,13 @@ export function DocumentDetailPage() {
     document.data?.status === "READY",
   );
 
-  if (document.isLoading) return <LoadingState label="Loading document…" />;
+  if (project.isLoading || document.isLoading)
+    return <LoadingState label="Loading document…" />;
+  if (project.isError) return <ErrorState error={project.error} />;
   if (document.isError) return <ErrorState error={document.error} />;
   if (!document.data) return null;
   const item = document.data;
+  const canEdit = project.data?.current_role !== "VIEWER";
 
   return (
     <section>
@@ -84,10 +88,26 @@ export function DocumentDetailPage() {
       )}
       {item.status === "READY" && (
         <div>
-          <ExtractionPanel documentId={documentId} projectId={projectId} />
-          <EmbeddingPanel documentId={documentId} projectId={projectId} />
-          <SemanticSearchPanel documentId={documentId} projectId={projectId} />
-          <RagQuestionPanel documentId={documentId} projectId={projectId} />
+          {!canEdit && <p className="notice">Viewer access is read-only.</p>}
+          <ExtractionPanel
+            canEdit={canEdit}
+            documentId={documentId}
+            projectId={projectId}
+          />
+          <EmbeddingPanel
+            canEdit={canEdit}
+            documentId={documentId}
+            projectId={projectId}
+          />
+          {canEdit && (
+            <SemanticSearchPanel
+              documentId={documentId}
+              projectId={projectId}
+            />
+          )}
+          {canEdit && (
+            <RagQuestionPanel documentId={documentId} projectId={projectId} />
+          )}
           <div className="section-heading">
             <h2>Extracted chunks</h2>
             <p>{chunks.data?.total ?? 0} deterministic text chunks</p>

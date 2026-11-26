@@ -5,6 +5,16 @@ const API_BASE_URL =
   ) ?? "http://localhost:8000";
 
 function errorMessage(payload: unknown, fallback: string): string {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  )
+    return payload.error.message;
   if (typeof payload !== "object" || payload === null || !("detail" in payload))
     return fallback;
   const detail = payload.detail;
@@ -24,7 +34,10 @@ export async function apiRequest<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+  });
   if (!response.ok) {
     let payload: unknown;
     try {

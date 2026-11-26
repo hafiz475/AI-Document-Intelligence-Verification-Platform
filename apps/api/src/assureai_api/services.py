@@ -11,7 +11,18 @@ from sqlalchemy.orm import Session
 
 from assureai_api.chunking import chunk_segments
 from assureai_api.extraction import ExtractionError, extract_text
-from assureai_api.models import Document, DocumentChunk, DocumentStatus, Project, utc_now
+from assureai_api.models import (
+    Document,
+    DocumentChunk,
+    DocumentStatus,
+    ExtractionRun,
+    Project,
+    ProjectMembership,
+    ProjectRole,
+    RagQuestion,
+    utc_now,
+)
+from assureai_api.security import record_audit
 from assureai_api.storage import DocumentStorage
 from assureai_api.uploads import validate_upload
 
@@ -28,22 +39,61 @@ class DuplicateDocumentError(ValueError):
         self.document_id = document_id
 
 
-def create_project(session: Session, name: str, description: str | None) -> Project:
+class DeletionConflictError(ValueError):
+    pass
+
+
+def create_project(
+    session: Session,
+    name: str,
+    description: str | None,
+    owner_user_id: str,
+    request_id: str | None = None,
+    trace_id: str | None = None,
+) -> Project:
     project = Project(name=name.strip(), description=description.strip() if description else None)
     session.add(project)
+    session.flush()
+    session.add(
+        ProjectMembership(project_id=project.id, user_id=owner_user_id, role=ProjectRole.OWNER)
+    )
+    record_audit(
+        session,
+        project_id=project.id,
+        event_type="project.created",
+        actor_user_id=owner_user_id,
+        request_id=request_id,
+        trace_id=trace_id,
+        target_type="project",
+        target_id=project.id,
+    )
     session.commit()
     session.refresh(project)
     return project
 
 
-def list_projects(session: Session) -> list[tuple[Project, int]]:
+def list_projects(session: Session, user_id: str) -> list[tuple[Project, int, ProjectRole]]:
     statement = (
-        select(Project, func.count(Document.id))
+        select(Project, func.count(Document.id), ProjectMembership.role)
         .outerjoin(Document)
-        .group_by(Project.id)
+        .join(ProjectMembership, ProjectMembership.project_id == Project.id)
+        .where(ProjectMembership.user_id == user_id)
+        .group_by(Project.id, ProjectMembership.role)
         .order_by(Project.created_at.desc())
     )
-    return [(project, count) for project, count in session.execute(statement).all()]
+    return [(project, count, role) for project, count, role in session.execute(statement).all()]
+
+
+def get_user_role(session: Session, project_id: str, user_id: str) -> ProjectRole:
+    role = session.scalar(
+        select(ProjectMembership.role).where(
+            ProjectMembership.project_id == project_id,
+            ProjectMembership.user_id == user_id,
+        )
+    )
+    if role is None:
+        raise NotFoundError("Project not found.")
+    return role
 
 
 def get_project(session: Session, project_id: str) -> tuple[Project, int]:
@@ -122,11 +172,15 @@ def upload_document(
     if existing:
         raise DuplicateDocumentError(existing.id)
 
-    storage_key = f"{uuid.uuid4()}{validated.extension}"
+    document_id = str(uuid.uuid4())
+    storage_key = f"{project_id}/{document_id}{validated.extension}"
     document = Document(
+        id=document_id,
         project_id=project_id,
         original_filename=safe_name,
         storage_key=storage_key,
+        storage_provider=storage.provider,
+        storage_container=storage.container,
         mime_type=validated.mime_type,
         file_size=len(content),
         sha256_hash=digest,
@@ -135,7 +189,7 @@ def upload_document(
     session.add(document)
     try:
         session.flush()
-        storage.save(storage_key, content)
+        storage.save(storage_key, content, validated.mime_type)
         document.status = DocumentStatus.QUEUED
         session.commit()
     except IntegrityError as exc:
@@ -175,6 +229,35 @@ def upload_document(
         raise
     session.refresh(document)
     return document
+
+
+def delete_document(
+    session: Session, storage: DocumentStorage, project_id: str, document_id: str
+) -> None:
+    document = get_document(session, project_id, document_id)
+    has_history = session.scalar(
+        select(ExtractionRun.id).where(ExtractionRun.document_id == document_id).limit(1)
+    ) or session.scalar(
+        select(RagQuestion.id).where(RagQuestion.document_id == document_id).limit(1)
+    )
+    if has_history:
+        raise DeletionConflictError(
+            "Document deletion is blocked because immutable extraction or RAG history exists."
+        )
+    storage.delete(document.storage_key)
+    session.delete(document)
+    session.commit()
+
+
+def delete_project(session: Session, storage: DocumentStorage, project_id: str) -> list[str]:
+    project, _ = get_project(session, project_id)
+    documents = list(session.scalars(select(Document).where(Document.project_id == project_id)))
+    document_ids = [document.id for document in documents]
+    for document in documents:
+        storage.delete(document.storage_key)
+    session.delete(project)
+    session.commit()
+    return document_ids
 
 
 def process_document(session: Session, storage: DocumentStorage, document_id: str) -> None:

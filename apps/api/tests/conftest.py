@@ -119,6 +119,8 @@ def client(
         enqueue_evaluation=lambda run_id: queued_evaluations.append(run_id),
     )
     with TestClient(application) as test_client:
+        login = test_client.post("/api/v1/auth/development/login", json={})
+        assert login.status_code == 200
         yield test_client
 
 

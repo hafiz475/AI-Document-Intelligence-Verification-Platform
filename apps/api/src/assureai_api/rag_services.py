@@ -22,6 +22,7 @@ from assureai_api.models import (
     RagSupportStatus,
     utc_now,
 )
+from assureai_api.observability import provider_metrics, trace_id
 from assureai_api.prompts import ensure_rag_prompt_v1, get_prompt_version
 from assureai_api.rag_contracts import (
     RagAnswerOutput,
@@ -66,6 +67,9 @@ def _audit(
             rag_question_id=question.id,
             event_type=event_type,
             event_metadata=metadata or {},
+            trace_id=trace_id(),
+            target_type="rag_question",
+            target_id=question.id,
         )
     )
 
@@ -353,11 +357,12 @@ def process_rag_question(
             input_tokens = None
             output_tokens = None
         else:
-            provider_result = answer_provider.generate_answer(
-                prompt=question.prompt_version.content,
-                question=question.question,
-                context=context,
-            )
+            with provider_metrics(answer_provider.provider_name, "rag_answer"):
+                provider_result = answer_provider.generate_answer(
+                    prompt=question.prompt_version.content,
+                    question=question.question,
+                    context=context,
+                )
             if (
                 provider_result.provider != question.provider
                 or provider_result.model != question.model

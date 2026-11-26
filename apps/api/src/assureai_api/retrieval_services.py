@@ -28,6 +28,7 @@ from assureai_api.models import (
     RetrievalEvaluationRun,
     utc_now,
 )
+from assureai_api.observability import provider_metrics
 from assureai_api.services import NotFoundError, get_document, get_project
 
 logger = logging.getLogger(__name__)
@@ -205,7 +206,8 @@ def process_embedding_run(
         provider_latency = 0
         for offset in range(0, len(chunks), batch_size):
             batch = chunks[offset : offset + batch_size]
-            result = provider.embed_texts([chunk.content for chunk in batch])
+            with provider_metrics(provider.provider_name, "embedding"):
+                result = provider.embed_texts([chunk.content for chunk in batch])
             if (
                 result.provider != run.provider
                 or result.model != run.model
@@ -327,7 +329,8 @@ def semantic_search(
     )
     started = time.perf_counter()
     try:
-        query_result = provider.embed_query(query)
+        with provider_metrics(provider.provider_name, "retrieval_query_embedding"):
+            query_result = provider.embed_query(query)
         if len(query_result.vectors) != 1:
             raise RetrievalUnavailableError("Provider returned an invalid query embedding.")
         query_vector = query_result.vectors[0]

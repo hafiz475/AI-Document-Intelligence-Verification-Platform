@@ -8,11 +8,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN addgroup --system --gid 10001 assureai && \
+    adduser --system --uid 10001 --ingroup assureai assureai && \
+    mkdir -p /data/documents && chown -R assureai:assureai /data
+
 COPY apps/api/pyproject.toml ./
 COPY apps/api/src ./src
 RUN pip install .
 
 COPY apps/worker/src ./worker-src
 ENV PYTHONPATH=/app/worker-src
+
+USER 10001:10001
 
 CMD ["dramatiq", "assureai_worker.tasks"]

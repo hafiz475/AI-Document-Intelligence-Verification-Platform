@@ -28,6 +28,8 @@ from assureai_api.models import (
     SupportStatus,
     utc_now,
 )
+from assureai_api.observability import provider_metrics
+from assureai_api.observability import trace_id as current_trace_id
 from assureai_api.prompts import ensure_inspection_prompt_v1, get_prompt_version
 from assureai_api.services import NotFoundError, get_document
 
@@ -53,6 +55,9 @@ def _audit(
     event_type: str,
     field_id: str | None = None,
     reviewer: str | None = None,
+    actor_user_id: str | None = None,
+    request_id: str | None = None,
+    trace_id: str | None = None,
     metadata: dict[str, object] | None = None,
 ) -> None:
     session.add(
@@ -64,6 +69,11 @@ def _audit(
             event_type=event_type,
             event_metadata=metadata or {},
             reviewer=reviewer,
+            actor_user_id=actor_user_id,
+            request_id=request_id,
+            trace_id=trace_id or current_trace_id(),
+            target_type="extracted_field" if field_id else "extraction_run",
+            target_id=field_id or run.id,
         )
     )
 
@@ -259,7 +269,10 @@ def process_extraction_run(
                 "model": run.model,
             },
         )
-        result = provider.extract_structured(prompt=prompt_version.content, chunks=source_chunks)
+        with provider_metrics(provider.provider_name, "extraction"):
+            result = provider.extract_structured(
+                prompt=prompt_version.content, chunks=source_chunks
+            )
         logger.info(
             "provider_request_completed",
             extra={
@@ -401,6 +414,10 @@ def review_extracted_field(
     decision: ReviewStatus,
     value: str | list[str] | None,
     reason: str | None,
+    reviewer: str | None = None,
+    actor_user_id: str | None = None,
+    request_id: str | None = None,
+    trace_id: str | None = None,
 ) -> ExtractedField:
     run = get_extraction_run(session, project_id, document_id, run_id)
     if run.status != ExtractionRunStatus.COMPLETED:
@@ -428,7 +445,7 @@ def review_extracted_field(
     field.review_status = decision
     field.corrected_value = normalize_value(value) if decision == ReviewStatus.CORRECTED else None
     field.review_reason = reason.strip() if reason else None
-    field.reviewer = None
+    field.reviewer = reviewer
     field.reviewed_at = utc_now()
     event_type = {
         ReviewStatus.VERIFIED: "field.verified",
@@ -441,6 +458,10 @@ def review_extracted_field(
         event_type=event_type,
         field_id=field.id,
         metadata={"field_name": field.field_name},
+        reviewer=reviewer,
+        actor_user_id=actor_user_id,
+        request_id=request_id,
+        trace_id=trace_id,
     )
     session.commit()
     session.refresh(field)

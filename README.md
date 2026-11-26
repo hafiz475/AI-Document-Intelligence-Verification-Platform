@@ -1,12 +1,13 @@
 # AssureAI
 
 AssureAI is a document-intelligence application for traceable technical-assurance
-workflows. Milestone 5 adds persisted, reproducible evaluation for extraction,
-retrieval, RAG, grounding, prompt/model comparison, and regression tracking.
+workflows. Milestone 6 completes the original roadmap with authentication, project
+RBAC, secure storage/secret adapters, auditability, observability, and operational
+hardening while preserving reproducible extraction, retrieval, RAG, and evaluation.
 
-> **Status:** Milestones 0-5 are implemented. The default demo uses deterministic,
-> offline development providers and does not represent real LLM execution. Chat,
-> agents, OCR, and production hardening remain planned.
+> **Status:** Milestones 0-6 are implemented. The default demo uses development
+> authentication, local private storage, and deterministic offline AI providers. These
+> do not represent production OIDC, managed Azure services, malware scanning, or HTTPS.
 
 ## Implemented
 
@@ -56,12 +57,12 @@ retrieval, RAG, grounding, prompt/model comparison, and regression tracking.
 - Compare completed runs with measured deltas and PASS, WARNING, or REGRESSION thresholds.
 - Inspect datasets, cases, run history, per-type metrics, provenance, and comparisons in React.
 
-## Planned, not implemented
+## Outside the completed roadmap
 
 - Conversation/chat, agents, and general tool calling
 - OCR and image-only document processing
-- Authentication and multi-user authorization
-- Production object storage
+- Agents, workflow orchestration, general tool calling, and web browsing
+- OCR and image-only document processing
 
 ## Architecture
 
@@ -216,7 +217,7 @@ persisted.
 
 Review decisions never overwrite raw_value or normalized_value. Corrections use a
 separate value, while verification/rejection/correction events retain timestamp, reason,
-and a null reviewer until authentication is implemented.
+and the authenticated reviewer identity.
 
 ## Embeddings and semantic retrieval
 
@@ -314,18 +315,15 @@ container structure, and UTF-8 decoding. Original filenames are display metadata
 Project scope is carried through document and chunk queries. Uploaded contents and
 secrets are ignored by version control and are never logged.
 
-Milestone 5 has no authentication, malware scanning, OCR, encrypted object storage,
-distributed storage adapter, conversation memory, agents, or web search. Prompt-injection
-risk is reduced through instruction/data separation and citation validation but is not
-eliminated. Image-only PDFs fail cleanly when no extractable text is found. Local
-filesystem storage and deterministic providers are intended for development and the
-single-host demo.
+Milestone 6 adds authenticated sessions, project membership/RBAC, private Azure Blob
+Storage and Key Vault adapters, rate limiting, OpenTelemetry, Prometheus metrics,
+malware-scanner integration points, and documented backup/restore operations. Local
+filesystem storage and deterministic providers remain development options.
 
-## Recommended Milestone 6
-
-Add production authentication and project membership/RBAC, storage and secret
-hardening, rate limiting, OpenTelemetry, metrics and alerts, backup/restore, and
-HTTPS/domain readiness.
+Conversation memory, agents, web search, OCR, and automatic LLM-as-judge decisions are
+outside the Milestone 6 scope. Prompt-injection risk is reduced through instruction/data
+separation and citation validation but is not eliminated. Image-only PDFs fail cleanly
+when no extractable text is found.
 
 ## License
 

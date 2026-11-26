@@ -5,6 +5,11 @@ from typing import cast
 from conftest import synthetic_docx, synthetic_pdf
 from fastapi.testclient import TestClient
 from httpx import Response
+from sqlalchemy import func, select
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
+
+from assureai_api.models import AuditEvent
 
 
 def upload(client: TestClient, project_id: str, name: str, content: bytes, mime: str) -> Response:
@@ -18,7 +23,10 @@ def upload(client: TestClient, project_id: str, name: str, content: bytes, mime:
 
 
 def test_valid_pdf_docx_and_txt_uploads(
-    client: TestClient, project_id: str, queued_documents: list[str]
+    client: TestClient,
+    project_id: str,
+    queued_documents: list[str],
+    engine: Engine,
 ) -> None:
     samples = [
         ("inspection.pdf", synthetic_pdf(), "application/pdf"),
@@ -35,6 +43,17 @@ def test_valid_pdf_docx_and_txt_uploads(
         assert response.json()["status"] == "QUEUED"
         assert "storage_key" not in response.json()
     assert len(queued_documents) == 3
+    with Session(engine) as session:
+        upload_audits = session.scalar(
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(
+                AuditEvent.project_id == project_id,
+                AuditEvent.event_type == "document.uploaded",
+                AuditEvent.actor_user_id.is_not(None),
+            )
+        )
+    assert upload_audits == 3
 
 
 def test_invalid_extension_and_type_are_rejected(client: TestClient, project_id: str) -> None:

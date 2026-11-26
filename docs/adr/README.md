@@ -1,5 +1,9 @@
 # Architecture decision records
 
+Milestone 6 decisions are ADRs 0029-0038: external authentication, project RBAC,
+private Azure-capable storage, secret management, observability, audit metadata,
+backup/restore, retention/deletion, the Azure production path, and malware scanning.
+
 ADRs capture decisions that are costly or confusing to rediscover. Use sequential four-digit identifiers, include context and tradeoffs, and do not rewrite an accepted decision to hide history; supersede it with a new ADR.
 
 - [0001: Monorepo modular monolith](0001-monorepo-modular-monolith.md)

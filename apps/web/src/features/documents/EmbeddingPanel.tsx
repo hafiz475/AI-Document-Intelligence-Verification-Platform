@@ -4,9 +4,11 @@ import { useCreateEmbeddingRun, useEmbeddingRuns } from "../hooks";
 export function EmbeddingPanel({
   projectId,
   documentId,
+  canEdit = true,
 }: {
   projectId: string;
   documentId: string;
+  canEdit?: boolean;
 }) {
   const runs = useEmbeddingRuns(projectId, documentId, true);
   const create = useCreateEmbeddingRun(projectId, documentId);
@@ -22,16 +24,18 @@ export function EmbeddingPanel({
           <h2 id="embeddings-heading">Embeddings</h2>
           <p>Vector generation is explicit and does not alter source chunks.</p>
         </div>
-        <button
-          className="button"
-          disabled={Boolean(active) || create.isPending}
-          onClick={() => create.mutate()}
-          type="button"
-        >
-          {latest?.status === "COMPLETED"
-            ? "Re-generate Embeddings"
-            : "Generate Embeddings"}
-        </button>
+        {canEdit && (
+          <button
+            className="button"
+            disabled={Boolean(active) || create.isPending}
+            onClick={() => create.mutate()}
+            type="button"
+          >
+            {latest?.status === "COMPLETED"
+              ? "Re-generate Embeddings"
+              : "Generate Embeddings"}
+          </button>
+        )}
       </div>
       {runs.isLoading && <LoadingState label="Loading embedding status…" />}
       {runs.isError && <ErrorState error={runs.error} />}

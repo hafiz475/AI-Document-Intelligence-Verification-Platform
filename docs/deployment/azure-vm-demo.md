@@ -8,9 +8,10 @@ The deployed showcase is available at:
 - Application: <http://52.172.254.68/>
 - API readiness: <http://52.172.254.68/ready>
 
-This is a demonstration deployment. It intentionally uses a public IP over HTTP and the
-current application has no authentication. Do not upload confidential, personal, or
-customer documents. Add authentication and TLS before using this pattern for real data.
+This is a demonstration deployment. It uses development-mode authentication over a
+public IP and may intentionally run over HTTP. Do not upload confidential, personal, or
+customer documents. Configure OIDC, TLS, Azure Blob Storage, Key Vault, and the other
+production controls in the migration guide before using this pattern for real data.
 
 ## Resulting architecture
 
@@ -251,11 +252,13 @@ Create the untracked environment file directly on the VM:
     umask 077
     postgres_password=$(openssl rand -hex 24)
     redis_password=$(openssl rand -hex 24)
+    session_secret=$(openssl rand -hex 32)
     printf '%s\n' \
       'POSTGRES_DB=assureai' \
       'POSTGRES_USER=assureai' \
       "POSTGRES_PASSWORD=$postgres_password" \
       "REDIS_PASSWORD=$redis_password" \
+      "ASSUREAI_SESSION_SECRET=$session_secret" \
       'ASSUREAI_PUBLIC_ORIGIN=http://52.172.254.68' \
       > .env.production
     chmod 600 .env.production

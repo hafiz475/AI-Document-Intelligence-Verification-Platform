@@ -1,5 +1,16 @@
 # AssureAI architecture
 
+## Milestone 6 production-hardening boundary
+
+OIDC/development sessions resolve to `User`; `ProjectMembership` applies OWNER, EDITOR,
+or VIEWER before any project route runs. Storage and secrets are provider-neutral with
+local/environment and managed-identity Azure Blob/Key Vault adapters. Requests carry
+request/trace/user/project identifiers through structured logs, audit events, metrics,
+and Dramatiq trace propagation. Private metrics, rate limits, safe errors, strict CORS,
+security headers, bounded requests/jobs, restore tooling, and explicit retention rules
+form the operational boundary. The existing evidence, citation, retrieval, evaluation,
+and immutable provenance validators remain authoritative after authorization.
+
 ## Current system
 
 AssureAI remains a modular monolith with separately runnable web, API, and worker
@@ -196,9 +207,9 @@ Document detail and chunk requests query by project_id and document_id together.
 document identifier presented through another project returns 404. Duplicate checks are
 also project-scoped. Storage keys never cross the HTTP boundary.
 
-Authentication and user ownership are deferred, so Milestone 1 isolation protects
-project boundaries within the current unauthenticated application but is not a complete
-multi-tenant authorization system.
+Milestone 6 authenticates every API request and enforces OWNER, EDITOR, or VIEWER
+membership before project-scoped route dispatch. Project identifiers remain explicit in
+queries and storage keys as a defense-in-depth boundary beneath authorization.
 
 RAG carries the same boundary through question creation, retrieval SQL, persisted
 provenance, question reads, and citation validation. A chunk from another project is
@@ -248,8 +259,9 @@ backups, monitoring, and an explicit migration job.
 
 ## Deferred work
 
-Authentication, chat, agents, general tool calling, OCR, and production hardening are
-deferred. M5 deliberately excludes automatic deployment blocking and LLM-as-judge.
+Chat, agents, general tool calling, OCR, and LLM-as-judge remain deferred. Milestone 6
+adds the production-hardening foundation while keeping deployment promotion a deliberate
+operator decision.
 
 ## Decisions
 

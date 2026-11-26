@@ -9,6 +9,7 @@ const project = {
   name: "Wind Farm Alpha",
   description: "Synthetic inspection workspace",
   document_count: 1,
+  current_role: "OWNER",
   created_at: "2026-11-06T10:00:00Z",
   updated_at: "2026-11-06T10:00:00Z",
 };
@@ -38,6 +39,14 @@ function response(body: unknown, status = 200): Response {
 
 function mockResponses(...bodies: unknown[]) {
   const mock = vi.fn<typeof fetch>();
+  mock.mockResolvedValueOnce(
+    response({
+      id: "user-1",
+      external_subject: "test-owner",
+      email: "owner@example.test",
+      display_name: "Test Owner",
+    }),
+  );
   for (const body of bodies) mock.mockResolvedValueOnce(response(body));
   vi.stubGlobal("fetch", mock);
   return mock;
@@ -67,10 +76,62 @@ it("renders the project list", async () => {
   expect(screen.getByText("1", { selector: "dd" })).toBeInTheDocument();
 });
 
-it("renders the create project form", () => {
+it("shows the development sign-in screen when the session is missing", async () => {
+  const mock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+    response(
+      {
+        error: {
+          code: "AUTHENTICATION_REQUIRED",
+          message: "Authentication is required.",
+          request_id: "request-1",
+        },
+      },
+      401,
+    ),
+  );
+  vi.stubGlobal("fetch", mock);
+  renderApp();
+  expect(
+    await screen.findByRole("heading", { name: "Sign in to AssureAI" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Sign in to demo" }),
+  ).toBeInTheDocument();
+});
+
+it("establishes a development session without browser token storage", async () => {
+  const user = {
+    id: "user-1",
+    external_subject: "demo-owner",
+    email: null,
+    display_name: "Demo Owner",
+  };
+  const mock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      response({ detail: "Authentication is required." }, 401),
+    )
+    .mockResolvedValueOnce(response(user))
+    .mockResolvedValueOnce(response([]));
+  vi.stubGlobal("fetch", mock);
+  renderApp();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Sign in to demo" }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Projects" }),
+  ).toBeInTheDocument();
+  expect(mock.mock.calls[1]?.[1]).toMatchObject({
+    credentials: "include",
+    method: "POST",
+  });
+});
+
+it("renders the create project form", async () => {
+  mockResponses();
   renderApp("/projects/new");
   expect(
-    screen.getByRole("heading", { name: "Create project" }),
+    await screen.findByRole("heading", { name: "Create project" }),
   ).toBeInTheDocument();
   expect(screen.getByLabelText("Project name")).toBeInTheDocument();
   expect(screen.getByLabelText("Description")).toBeInTheDocument();
@@ -78,7 +139,7 @@ it("renders the create project form", () => {
 
 it("shows the upload state after a document is selected", async () => {
   const pendingUpload = new Promise<Response>(() => undefined);
-  const fetchMock = mockResponses(project, [], [], []);
+  const fetchMock = mockResponses(project, [], [], [], []);
   fetchMock.mockReturnValueOnce(pendingUpload);
   const view = renderApp("/projects/project-1");
   await screen.findByRole("heading", { name: "Wind Farm Alpha" });
@@ -96,7 +157,7 @@ it("shows the upload state after a document is selected", async () => {
 });
 
 it("shows a processing state", async () => {
-  mockResponses({
+  mockResponses(project, {
     ...baseDocument,
     status: "PROCESSING",
     character_count: null,
@@ -110,7 +171,7 @@ it("shows a processing state", async () => {
 });
 
 it("shows extracted chunks for a ready document", async () => {
-  mockResponses(baseDocument, [], [], [], {
+  mockResponses(project, baseDocument, [], [], [], {
     items: [
       {
         id: "chunk-1",
@@ -136,7 +197,7 @@ it("shows extracted chunks for a ready document", async () => {
 });
 
 it("shows a safe failed state", async () => {
-  mockResponses({
+  mockResponses(project, {
     ...baseDocument,
     status: "FAILED",
     processing_error: "The document could not be parsed.",
@@ -148,5 +209,28 @@ it("shows a safe failed state", async () => {
   expect(
     screen.getByText("The document could not be parsed."),
   ).toBeInTheDocument();
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+});
+
+it("renders document operations read-only for a viewer", async () => {
+  mockResponses(
+    { ...project, current_role: "VIEWER" },
+    { ...baseDocument, status: "READY" },
+    [],
+    [],
+    { items: [], total: 0, limit: 100, offset: 0 },
+  );
+  renderApp("/projects/project-1/documents/document-1");
+  expect(
+    await screen.findByText("Viewer access is read-only."),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Run AI Extraction" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Generate Embeddings" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Semantic Search" }),
+  ).not.toBeInTheDocument();
 });

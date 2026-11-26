@@ -11,6 +11,7 @@ import { useDocuments, useProject, useUploadDocument } from "../hooks";
 import { RetrievalEvaluationPanel } from "../RetrievalEvaluationPanel";
 import { RagQuestionPanel } from "../RagQuestionPanel";
 import { SemanticSearchPanel } from "../SemanticSearchPanel";
+import { MemberManagement } from "./MemberManagement";
 
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
@@ -23,6 +24,7 @@ export function ProjectDetailPage() {
   const project = useProject(projectId);
   const documents = useDocuments(projectId);
   const upload = useUploadDocument(projectId);
+  const canEdit = project.data?.current_role !== "VIEWER";
 
   if (project.isLoading) return <LoadingState label="Loading project…" />;
   if (project.isError) return <ErrorState error={project.error} />;
@@ -43,18 +45,24 @@ export function ProjectDetailPage() {
           <span>documents</span>
         </div>
       </div>
-      <p>
-        <Link
-          className="button secondary"
-          to={`/projects/${projectId}/evaluations`}
-        >
-          Open Evaluations
-        </Link>
-      </p>
-      <FileUpload
-        busy={upload.isPending}
-        onUpload={(file) => upload.mutate(file)}
-      />
+      {canEdit && (
+        <p>
+          <Link
+            className="button secondary"
+            to={`/projects/${projectId}/evaluations`}
+          >
+            Open Evaluations
+          </Link>
+        </p>
+      )}
+      {canEdit ? (
+        <FileUpload
+          busy={upload.isPending}
+          onUpload={(file) => upload.mutate(file)}
+        />
+      ) : (
+        <p className="notice">Viewer access is read-only.</p>
+      )}
       {upload.isError && <ErrorState error={upload.error} />}
       {upload.isSuccess && (
         <p className="notice" role="status">
@@ -62,8 +70,8 @@ export function ProjectDetailPage() {
         </p>
       )}
 
-      <SemanticSearchPanel projectId={projectId} />
-      <RagQuestionPanel projectId={projectId} />
+      {canEdit && <SemanticSearchPanel projectId={projectId} />}
+      {canEdit && <RagQuestionPanel projectId={projectId} />}
 
       <div className="section-heading">
         <h2>Documents</h2>
@@ -116,7 +124,10 @@ export function ProjectDetailPage() {
           />
         )
       )}
-      <RetrievalEvaluationPanel projectId={projectId} />
+      {canEdit && <RetrievalEvaluationPanel projectId={projectId} />}
+      {project.data?.current_role === "OWNER" && (
+        <MemberManagement projectId={projectId} />
+      )}
     </section>
   );
 }

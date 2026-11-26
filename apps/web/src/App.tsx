@@ -5,6 +5,7 @@ import { CreateProjectPage } from "./features/projects/CreateProjectPage";
 import { ProjectDetailPage } from "./features/projects/ProjectDetailPage";
 import { ProjectListPage } from "./features/projects/ProjectListPage";
 import { EvaluationsPage } from "./features/evaluations/EvaluationsPage";
+import { AuthGate } from "./features/auth/AuthGate";
 
 function Layout() {
   return (
@@ -14,7 +15,7 @@ function Layout() {
           <Link className="brand" to="/">
             <span aria-hidden="true">A</span>AssureAI
           </Link>
-          <span className="milestone">Milestone 5 · Measured AI quality</span>
+          <span className="milestone">Milestone 6 · Production hardening</span>
         </nav>
       </header>
       <main className="container">
@@ -42,5 +43,9 @@ function Layout() {
 }
 
 export function App() {
-  return <Layout />;
+  return (
+    <AuthGate>
+      <Layout />
+    </AuthGate>
+  );
 }
