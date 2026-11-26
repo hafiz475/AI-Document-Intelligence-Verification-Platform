@@ -366,6 +366,26 @@ are preserved. Failed image builds leave the currently running containers unchan
 The workflow can also be run manually from **Actions > Deploy to Azure VM > Run
 workflow**.
 
+### M5 to M6 document-volume ownership migration
+
+M6 runs the API and worker as UID/GID `10001`. A document volume created by an older
+root-running release can retain `root:root` ownership even though the new image declares
+the correct directory owner. Before accepting uploads after the first M6 deployment,
+check and, if required, migrate only the existing document directory:
+
+    cd /opt/assureai/current
+    docker compose --env-file /opt/assureai/.env.production \
+      -f docker-compose.prod.yml exec api sh -c 'test -w /data/documents'
+    docker compose --env-file /opt/assureai/.env.production \
+      -f docker-compose.prod.yml exec -u 0:0 api \
+      chown -R 10001:10001 /data/documents
+    docker compose --env-file /opt/assureai/.env.production \
+      -f docker-compose.prod.yml exec api sh -c 'test -w /data/documents'
+
+The ownership change preserves document contents. Do not apply it to PostgreSQL or
+Redis volumes. Fresh M6 volumes are initialized with the non-root owner by the image and
+do not need this migration.
+
 ## 16. Routine operations
 
 View service state and recent logs:
