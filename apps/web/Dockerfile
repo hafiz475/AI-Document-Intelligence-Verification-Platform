@@ -21,8 +21,8 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
 
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --chown=101:101 --chmod=644 apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=101:101 --from=build /app/dist /usr/share/nginx/html
 
 USER 101:101
 
