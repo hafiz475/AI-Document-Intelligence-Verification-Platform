@@ -21,6 +21,7 @@ COPY src ./src
 COPY alembic.ini ./
 COPY migrations ./migrations
 RUN pip install .
+RUN chown -R assureai:assureai /app && chmod -R u=rwX,go=rX /app
 
 USER 10001:10001
 

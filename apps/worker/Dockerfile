@@ -22,6 +22,7 @@ RUN pip install .
 
 COPY apps/worker/src ./worker-src
 ENV PYTHONPATH=/app/worker-src
+RUN chown -R assureai:assureai /app && chmod -R u=rwX,go=rX /app
 
 USER 10001:10001
 
