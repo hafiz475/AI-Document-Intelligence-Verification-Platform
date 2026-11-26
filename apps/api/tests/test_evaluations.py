@@ -8,6 +8,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from assureai_api.config import Settings
+from assureai_api.database import create_session_factory
 from assureai_api.embedding_providers import DevelopmentEmbeddingProvider
 from assureai_api.evaluation_services import process_evaluation_run
 from assureai_api.models import (
@@ -237,7 +238,7 @@ def test_retrieval_and_rag_runs_measure_real_outputs(
         f"/api/v1/projects/{project_id}/evaluation-runs",
         json={"dataset_id": retrieval["id"], "top_k": 2},
     ).json()
-    with Session(engine) as session:
+    with create_session_factory(engine)() as session:
         process_evaluation_run(session, settings=settings, run_id=retrieval_run["id"])
     retrieval_done = client.get(
         f"/api/v1/projects/{project_id}/evaluation-runs/{retrieval_run['id']}"
@@ -263,7 +264,7 @@ def test_retrieval_and_rag_runs_measure_real_outputs(
         f"/api/v1/projects/{project_id}/evaluation-runs",
         json={"dataset_id": rag["id"], "top_k": 2},
     ).json()
-    with Session(engine) as session:
+    with create_session_factory(engine)() as session:
         process_evaluation_run(session, settings=settings, run_id=rag_run["id"])
     rag_done = client.get(f"/api/v1/projects/{project_id}/evaluation-runs/{rag_run['id']}").json()
     assert rag_done["aggregate_metrics_json"]["support_status_correct"] == 1

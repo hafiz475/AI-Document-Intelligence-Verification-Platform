@@ -611,12 +611,17 @@ def _evaluate_rag(
         top_k=cast(int, run.configuration_json["top_k"]),
         prompt_version_id=run.prompt_version_id,
     )
+    # Evaluation invokes the queued product workflow synchronously. Expire around
+    # that call to preserve its normal separate-worker session boundary when the
+    # production session factory retains loaded relationships across commits.
+    session.expire(question)
     process_rag_question(
         session,
         embedding_provider=create_embedding_provider(settings),
         answer_provider=create_rag_provider(settings),
         question_id=question.id,
     )
+    session.expire(question)
     question = get_rag_question(session, run.project_id, question.id)
     if question.answer is None:
         raise EvaluationUnavailableError("RAG workflow completed without an answer.")
