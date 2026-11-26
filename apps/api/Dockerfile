@@ -8,6 +8,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 10001 assureai && \
     adduser --system --uid 10001 --ingroup assureai assureai && \
     mkdir -p /data/documents && chown -R assureai:assureai /data
