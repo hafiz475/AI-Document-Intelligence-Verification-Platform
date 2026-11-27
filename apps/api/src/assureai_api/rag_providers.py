@@ -100,10 +100,12 @@ def _best_quote(chunk: RagContextChunk, question_tokens: set[str]) -> tuple[int,
         overlap = len(question_tokens.intersection(_tokens(line)))
         lowered = line.lower()
         if not question_tokens and re.match(
-            r"^(observation|finding|inspection result)\s*:", lowered
+            r"^(observation|finding|inspection result|"
+            r"operating measurement|inspection observations)\s*:?[ ]*$",
+            lowered,
         ):
             overlap = 1
-            if line.endswith(":") and index + 1 < len(lines):
+            if index + 1 < len(lines):
                 line = f"{line} {lines[index + 1]}"
         if overlap and (best is None or overlap > best[0]):
             best = overlap, line

@@ -158,7 +158,7 @@ def test_supported_answer_persists_citation_provenance_and_prompt(
         chunks=[
             (
                 "Equipment: Cooling Water Pump P-204\n"
-                "Observation:\nDrive-end bearing vibration measured 8.4 mm/s RMS.\n"
+                "Operating measurement\nDrive-end bearing vibration measured 8.4 mm/s RMS.\n"
                 "Expected:\nBelow 4.5 mm/s RMS.",
                 3,
             )
