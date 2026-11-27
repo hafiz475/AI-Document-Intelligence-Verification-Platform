@@ -86,11 +86,11 @@ export function SemanticSearchPanel({
                   <blockquote>{result.content}</blockquote>
                   <Link
                     to={
-                      "/projects/" +
+                      "/app/projects/" +
                       projectId +
                       "/documents/" +
                       result.document_id +
-                      "#chunk-" +
+                      "?tab=chunks#chunk-" +
                       result.chunk_id
                     }
                   >

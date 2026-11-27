@@ -52,6 +52,12 @@ jobs:
           alembic upgrade head
         env:
           ASSUREAI_DATABASE_URL: sqlite:///./upgrade-check.db
+      - name: Validate M6 to Productization upgrade migration
+        run: |
+          alembic upgrade 20261126_0006
+          alembic upgrade head
+        env:
+          ASSUREAI_DATABASE_URL: sqlite:///./productization-upgrade-check.db
       - name: Validate PostgreSQL pgvector migration
         run: alembic upgrade head
         env:

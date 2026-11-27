@@ -81,6 +81,12 @@ function FieldCard({
         <div>
           <p className="field-label">{fieldLabel(field.field_name)}</p>
           <p className="field-value">{displayValue(effectiveValue)}</p>
+          {field.review_status === "CORRECTED" && (
+            <p className="muted">
+              <strong>Original AI value:</strong>{" "}
+              {displayValue(field.normalized_value)}
+            </p>
+          )}
           {field.missing_reason && (
             <p className="muted">Missing: {field.missing_reason}</p>
           )}
@@ -268,7 +274,7 @@ export function ExtractionPanel({
     <section className="ai-extraction">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Milestone 2</p>
+          <p className="eyebrow">Structured extraction</p>
           <h2>AI Extraction</h2>
         </div>
         {canEdit && (
@@ -303,6 +309,77 @@ export function ExtractionPanel({
             </div>
             <StatusBadge status={latest.status} />
           </div>
+          <dl className="extraction-summary" aria-label="Extraction summary">
+            <div>
+              <dt>Total fields</dt>
+              <dd>{latest.fields.length}</dd>
+            </div>
+            <div>
+              <dt>Evidence-backed</dt>
+              <dd>
+                {
+                  latest.fields.filter((field) => field.evidence.length > 0)
+                    .length
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Missing</dt>
+              <dd>
+                {
+                  latest.fields.filter(
+                    (field) => field.normalized_value === null,
+                  ).length
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Verified</dt>
+              <dd>
+                {
+                  latest.fields.filter(
+                    (field) => field.review_status === "VERIFIED",
+                  ).length
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Corrected</dt>
+              <dd>
+                {
+                  latest.fields.filter(
+                    (field) => field.review_status === "CORRECTED",
+                  ).length
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Rejected</dt>
+              <dd>
+                {
+                  latest.fields.filter(
+                    (field) => field.review_status === "REJECTED",
+                  ).length
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Latency</dt>
+              <dd>
+                {latest.latency_ms === null
+                  ? "Unknown"
+                  : `${latest.latency_ms} ms`}
+              </dd>
+            </div>
+            <div>
+              <dt>Tokens</dt>
+              <dd>
+                {latest.input_tokens === null || latest.output_tokens === null
+                  ? "Unknown"
+                  : latest.input_tokens + latest.output_tokens}
+              </dd>
+            </div>
+          </dl>
           <ExtractionResult
             canEdit={canEdit}
             documentId={documentId}

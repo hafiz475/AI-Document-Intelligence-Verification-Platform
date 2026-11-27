@@ -1,15 +1,20 @@
 # AssureAI
 
-AssureAI is a document-intelligence application for traceable technical-assurance
-workflows. Milestone 6 completes the original roadmap with authentication, project
-RBAC, secure storage/secret adapters, auditability, observability, and operational
-hardening while preserving reproducible extraction, retrieval, RAG, and evaluation.
+AssureAI is an evidence-backed document intelligence platform that extracts structured
+information, connects AI outputs to exact source evidence, supports human verification,
+answers questions with validated citations, and measures AI quality.
 
-> **Status:** Milestones 0-6 are implemented. The default demo uses development
-> authentication, local private storage, and deterministic offline AI providers. These
-> do not represent production OIDC, managed Azure services, malware scanning, or HTTPS.
+Upload a PDF, DOCX, or TXT file; inspect structured fields beside their evidence;
+verify, correct, or reject results; search source passages; ask grounded questions; and
+evaluate extraction, retrieval, and RAG behavior. Deterministic offline providers make
+the complete demo usable without paid AI credentials.
 
-## Implemented
+> **Status:** The original M0-M6 roadmap and Productization Phase 1 are implemented.
+> Local and raw-IP Azure demo modes use development authentication, deterministic
+> providers, and may use HTTP. They do not claim production OIDC, real OpenAI execution,
+> managed Azure services, malware scanning, high availability, or HTTPS.
+
+## Product capabilities
 
 - Create, list, and inspect isolated projects.
 - Upload PDF, DOCX, and UTF-8 TXT documents up to a configurable size.
@@ -56,35 +61,44 @@ hardening while preserving reproducible extraction, retrieval, RAG, and evaluati
 - Snapshot cases and record prompt, provider/model, embedding, workflow, and evaluator provenance.
 - Compare completed runs with measured deltas and PASS, WARNING, or REGRESSION thresholds.
 - Inspect datasets, cases, run history, per-type metrics, provenance, and comparisons in React.
+- Open a public product landing page and a responsive, authenticated `/app` workspace.
+- View persisted project health, token/latency usage, bounded activity, and first-run guidance.
+- Review fields against authorized source context and retain original AI values after correction.
+- Use a project review queue, audit trail, and authenticated document report.
 
-## Outside the completed roadmap
+## Screenshots
 
-- Conversation/chat, agents, and general tool calling
+Screenshots are not represented by fabricated mock images. Run the demo and capture the
+live landing page, overview, evidence review, grounded answer with citation, and
+evaluation comparison screens for portfolio use.
+
+## Current limitations
+
 - OCR and image-only document processing
-- Agents, workflow orchestration, general tool calling, and web browsing
-- OCR and image-only document processing
+- Public unauthenticated report links
+- Conversation agents, general tool calling, and web browsing
+- Production identity/TLS unless an operator completes the documented migration
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[Reviewer] --> W[React web app]
-    W --> A[FastAPI API]
-    A --> P[(PostgreSQL)]
+    B[Browser / React] -->|authenticated API| A[FastAPI + RBAC]
+    A --> P[(PostgreSQL + pgvector)]
     A --> R[(Redis)]
-    R --> J[Dramatiq worker]
-    A --> S[(Private document storage)]
-    J --> S
-    J --> P
-    J --> D[Development provider]
-    J -. configured .-> O[OpenAI structured outputs]
-    J --> E[Development embeddings]
-    J -. configured .-> OE[OpenAI embeddings]
-    A -->|cosine search| P
-    J -->|retrieve, generate, validate citations| P
+    A --> S[(Private storage)]
+    R --> W[Dramatiq worker]
+    W --> X[Extraction provider]
+    W --> E[Embedding provider]
+    W --> G[RAG provider]
+    W --> P
+    W --> S
+    A --> Q[Audit + evaluation]
+    A --> O[OpenTelemetry + metrics]
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/adr](docs/adr).
+See [ARCHITECTURE.md](ARCHITECTURE.md), [the five-minute demo](docs/DEMO.md), and
+[docs/adr](docs/adr).
 
 ## Run with Docker Compose
 
@@ -110,6 +124,23 @@ To exercise the vertical slice, create “Wind Farm Alpha” and upload a file f
 [sample-data](sample-data). The included data is synthetic.
 
 ## Run without Docker
+
+For the verified product scenario, use
+[sample-pump-inspection.txt](sample-data/sample-pump-inspection.txt) and follow
+[docs/DEMO.md](docs/DEMO.md). All included data is synthetic.
+
+## Technology, security, evaluation, and deployment
+
+- **Stack:** React, TypeScript, TanStack Query, FastAPI, SQLAlchemy, PostgreSQL,
+  pgvector, Redis, Dramatiq, Alembic, Docker Compose, and Nginx.
+- **Security:** authenticated sessions, project OWNER/EDITOR/VIEWER RBAC, project
+  scoping, private storage keys, security headers, rate limits, safe errors,
+  secret-store adapters, and durable audit events.
+- **Evaluation:** persisted extraction, retrieval, and RAG datasets/runs; field and
+  evidence metrics; Hit@K, Recall@K, MRR; groundedness, citation validity, and
+  insufficient-evidence checks; compatible-run comparisons.
+- **Deployment:** verified Compose development and an Azure VM demo path; a separate
+  documented path covers managed services, custom domains, TLS, and OIDC.
 
 Use Python 3.12+ and Node 22.
 

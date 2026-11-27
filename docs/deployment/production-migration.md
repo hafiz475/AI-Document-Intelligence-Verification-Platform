@@ -17,3 +17,21 @@ Migration order: establish identity/networking; copy and verify blobs; migrate a
 validate PostgreSQL; configure managed secrets; deploy workers/API/web; run isolation,
 grounding, restore, and security acceptance; then switch DNS/TLS. Do not migrate solely
 to make the demo appear more production-like.
+
+## Custom domain and HTTPS readiness checklist
+
+1. Create a controlled DNS record for the chosen ingress and verify ownership before
+   changing application origins.
+2. Issue and bind a managed certificate at Front Door, Application Gateway, or the
+   selected ingress. Keep automatic renewal enabled and alert on renewal failure or
+   near-expiry; assign an emergency certificate replacement owner.
+3. Redirect HTTP to HTTPS at ingress. Do not enable HSTS while users can still reach an
+   HTTP-only endpoint.
+4. Set `ASSUREAI_CORS_ORIGINS` to exact HTTPS origins and `VITE_API_BASE_URL` to the final
+   HTTPS API URL. Remove raw-IP and development origins from production.
+5. Enable secure, HttpOnly, SameSite-appropriate cookies only after end-to-end HTTPS is
+   verified. Then introduce HSTS conservatively after rollback and subdomain tests.
+6. Verify `/health`, `/ready`, OIDC callbacks, uploads, security headers, and mixed-content
+   behavior through the custom domain.
+7. Keep the raw-IP demo documented as HTTP until actually protected. A DNS record or open
+   port 443 alone does not prove HTTPS is active.

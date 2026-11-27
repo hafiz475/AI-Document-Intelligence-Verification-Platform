@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { RagQuestion, RagSupportStatus } from "../api/types";
 import { ErrorState, LoadingState, StatusBadge } from "../components/States";
@@ -16,7 +17,13 @@ function SupportBadge({ status }: { status: RagSupportStatus }) {
   );
 }
 
-function AnswerView({ question }: { question: RagQuestion }) {
+function AnswerView({
+  question,
+  projectId,
+}: {
+  question: RagQuestion;
+  projectId: string;
+}) {
   if (question.status === "FAILED") {
     return (
       <div className="state-card error" role="alert">
@@ -78,7 +85,11 @@ function AnswerView({ question }: { question: RagQuestion }) {
                       citation.similarity_score.toFixed(4)}
                   </summary>
                   <blockquote>{citation.quote}</blockquote>
-                  <code>Chunk {citation.chunk_id}</code>
+                  <Link
+                    to={`/app/projects/${projectId}/documents/${citation.document_id}?tab=chunks#chunk-${citation.chunk_id}`}
+                  >
+                    Open exact source evidence
+                  </Link>
                 </details>
               </li>
             ))}
@@ -128,11 +139,26 @@ export function RagQuestionPanel({
   projectId: string;
   documentId?: string;
 }) {
-  const questions = useRagQuestions(projectId, documentId);
-  const create = useCreateRagQuestion(projectId, documentId);
   const [questionText, setQuestionText] = useState("");
   const [topK, setTopK] = useState(5);
+  const [supportStatus, setSupportStatus] = useState<RagSupportStatus | "">("");
+  const [documentFilter, setDocumentFilter] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const questions = useRagQuestions(
+    projectId,
+    (documentId ?? documentFilter) || undefined,
+    {
+      supportStatus,
+      createdFrom: createdFrom || undefined,
+      createdTo: createdTo ? `${createdTo}T23:59:59Z` : undefined,
+      limit: 26,
+      offset,
+    },
+  );
+  const create = useCreateRagQuestion(projectId, documentId);
 
   const selected =
     questions.data?.find((question) => question.id === selectedId) ??
@@ -191,17 +217,69 @@ export function RagQuestionPanel({
         </button>
       </form>
       {create.isError && <ErrorState error={create.error} />}
+      <div className="filter-bar" aria-label="Question history filters">
+        <label>
+          Support status
+          <select
+            value={supportStatus}
+            onChange={(event) => {
+              setSupportStatus(event.target.value as RagSupportStatus | "");
+              setOffset(0);
+            }}
+          >
+            <option value="">All answers</option>
+            <option value="SUPPORTED">SUPPORTED</option>
+            <option value="PARTIALLY_SUPPORTED">PARTIALLY SUPPORTED</option>
+            <option value="INSUFFICIENT_EVIDENCE">INSUFFICIENT EVIDENCE</option>
+          </select>
+        </label>
+        {!documentId && (
+          <label>
+            Document ID
+            <input
+              value={documentFilter}
+              onChange={(event) => {
+                setDocumentFilter(event.target.value);
+                setOffset(0);
+              }}
+              placeholder="All documents"
+            />
+          </label>
+        )}
+        <label>
+          From
+          <input
+            type="date"
+            value={createdFrom}
+            onChange={(event) => {
+              setCreatedFrom(event.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+        <label>
+          To
+          <input
+            type="date"
+            value={createdTo}
+            onChange={(event) => {
+              setCreatedTo(event.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+      </div>
       {questions.isLoading && (
         <LoadingState label="Loading question history…" />
       )}
       {questions.isError && <ErrorState error={questions.error} />}
-      {selected && <AnswerView question={selected} />}
+      {selected && <AnswerView projectId={projectId} question={selected} />}
 
       <div className="question-history">
         <h3>Question history</h3>
         {questions.data?.length ? (
           <ol>
-            {questions.data.map((question) => (
+            {questions.data.slice(0, 25).map((question) => (
               <li key={question.id}>
                 <button
                   aria-pressed={selected?.id === question.id}
@@ -228,6 +306,28 @@ export function RagQuestionPanel({
           !questions.isLoading && (
             <p className="muted">No questions have been asked yet.</p>
           )
+        )}
+        {questions.data && (offset > 0 || questions.data.length > 25) && (
+          <div className="pagination">
+            <button
+              className="button secondary"
+              disabled={!offset}
+              onClick={() => setOffset(Math.max(0, offset - 25))}
+            >
+              Previous
+            </button>
+            <span>
+              Questions {offset + 1}–
+              {offset + Math.min(25, questions.data.length)}
+            </span>
+            <button
+              className="button secondary"
+              disabled={questions.data.length <= 25}
+              onClick={() => setOffset(offset + 25)}
+            >
+              Next
+            </button>
+          </div>
         )}
       </div>
     </section>

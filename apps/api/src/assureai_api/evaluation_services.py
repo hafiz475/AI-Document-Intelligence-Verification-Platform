@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable
 from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -433,6 +433,9 @@ def list_runs(
     evaluation_type: EvaluationType | None = None,
     dataset_id: str | None = None,
     status: EvaluationRunStatus | None = None,
+    provider_model: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[EvaluationRun]:
     get_project(session, project_id)
     query = _run_query().where(EvaluationRun.project_id == project_id)
@@ -442,7 +445,16 @@ def list_runs(
         query = query.where(EvaluationRun.dataset_id == dataset_id)
     if status is not None:
         query = query.where(EvaluationRun.status == status)
-    return list(session.scalars(query.order_by(EvaluationRun.created_at.desc())).unique())
+    if provider_model:
+        pattern = f"%{provider_model}%"
+        query = query.where(
+            or_(EvaluationRun.provider.ilike(pattern), EvaluationRun.model.ilike(pattern))
+        )
+    return list(
+        session.scalars(
+            query.order_by(EvaluationRun.created_at.desc()).limit(limit).offset(offset)
+        ).unique()
+    )
 
 
 def _run_settings(settings: Settings, run: EvaluationRun) -> Settings:

@@ -3,6 +3,7 @@
 import logging
 import time
 from collections.abc import Callable
+from datetime import datetime
 
 from pydantic import ValidationError
 from sqlalchemy import Select, delete, select
@@ -174,6 +175,11 @@ def list_rag_questions(
     project_id: str,
     *,
     document_id: str | None = None,
+    support_status: RagSupportStatus | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[RagQuestion]:
     get_project(session, project_id)
     if document_id is not None:
@@ -181,7 +187,15 @@ def list_rag_questions(
     query = _question_query().where(RagQuestion.project_id == project_id)
     if document_id is not None:
         query = query.where(RagQuestion.document_id == document_id)
-    return list(session.scalars(query.order_by(RagQuestion.created_at.desc())))
+    if support_status is not None:
+        query = query.join(RagAnswer).where(RagAnswer.support_status == support_status)
+    if created_from is not None:
+        query = query.where(RagQuestion.created_at >= created_from)
+    if created_to is not None:
+        query = query.where(RagQuestion.created_at <= created_to)
+    return list(
+        session.scalars(query.order_by(RagQuestion.created_at.desc()).limit(limit).offset(offset))
+    )
 
 
 def _normalize_whitespace(value: str) -> str:

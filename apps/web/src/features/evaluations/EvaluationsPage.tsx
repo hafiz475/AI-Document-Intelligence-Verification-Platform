@@ -166,8 +166,18 @@ function CaseEditor({
 
 export function EvaluationsPage() {
   const { projectId = "" } = useParams();
+  const [typeFilter, setTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
+  const [runOffset, setRunOffset] = useState(0);
   const datasets = useEvaluationDatasets(projectId);
-  const runs = useEvaluationRuns(projectId);
+  const runs = useEvaluationRuns(projectId, {
+    evaluationType: typeFilter,
+    status: statusFilter,
+    providerModel: modelFilter,
+    limit: 51,
+    offset: runOffset,
+  });
   const createDataset = useCreateEvaluationDataset(projectId);
   const createRun = useCreateEvaluationRun(projectId);
   const comparison = useCompareEvaluationRuns(projectId);
@@ -179,9 +189,6 @@ export function EvaluationsPage() {
   const [topK, setTopK] = useState(5);
   const [runA, setRunA] = useState("");
   const [runB, setRunB] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [modelFilter, setModelFilter] = useState("");
 
   const activeDatasetId = datasetId || datasets.data?.[0]?.id || "";
   const dataset = datasets.data?.find((item) => item.id === activeDatasetId);
@@ -190,15 +197,17 @@ export function EvaluationsPage() {
     runs.data?.filter((item) => item.status === "COMPLETED") ?? [];
   const filteredRuns = useMemo(
     () =>
-      runs.data?.filter(
-        (item) =>
-          (!typeFilter || item.evaluation_type === typeFilter) &&
-          (!statusFilter || item.status === statusFilter) &&
-          (!modelFilter ||
-            `${item.provider}/${item.model}/${item.prompt_version_id ?? ""}`
-              .toLowerCase()
-              .includes(modelFilter.toLowerCase())),
-      ) ?? [],
+      runs.data
+        ?.slice(0, 50)
+        .filter(
+          (item) =>
+            (!typeFilter || item.evaluation_type === typeFilter) &&
+            (!statusFilter || item.status === statusFilter) &&
+            (!modelFilter ||
+              `${item.provider}/${item.model}/${item.prompt_version_id ?? ""}`
+                .toLowerCase()
+                .includes(modelFilter.toLowerCase())),
+        ) ?? [],
     [runs.data, typeFilter, statusFilter, modelFilter],
   );
 
@@ -209,13 +218,13 @@ export function EvaluationsPage() {
 
   return (
     <section>
-      <Link className="back-link" to={`/projects/${projectId}`}>
+      <Link className="back-link" to={`/app/projects/${projectId}/overview`}>
         Back to project
       </Link>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Milestone 5</p>
-          <h1>Evaluations</h1>
+          <p className="eyebrow">AI quality</p>
+          <h1>Evaluation dashboard</h1>
           <p>
             Measured, versioned quality for extraction, retrieval, and grounded
             answers.
@@ -420,7 +429,10 @@ export function EvaluationsPage() {
           <select
             aria-label="Filter by evaluation type"
             value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
+            onChange={(event) => {
+              setTypeFilter(event.target.value);
+              setRunOffset(0);
+            }}
           >
             <option value="">All types</option>
             <option>EXTRACTION</option>
@@ -430,7 +442,10 @@ export function EvaluationsPage() {
           <select
             aria-label="Filter by status"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setRunOffset(0);
+            }}
           >
             <option value="">All statuses</option>
             <option>QUEUED</option>
@@ -442,7 +457,10 @@ export function EvaluationsPage() {
             aria-label="Filter by provider, model, or prompt"
             placeholder="Provider, model, or prompt"
             value={modelFilter}
-            onChange={(event) => setModelFilter(event.target.value)}
+            onChange={(event) => {
+              setModelFilter(event.target.value);
+              setRunOffset(0);
+            }}
           />
         </div>
         {filteredRuns.length ? (
@@ -497,6 +515,28 @@ export function EvaluationsPage() {
             title="No matching runs"
             detail="Create a run or adjust filters."
           />
+        )}
+        {runs.data && (runOffset > 0 || runs.data.length > 50) && (
+          <div className="pagination">
+            <button
+              className="button secondary"
+              disabled={!runOffset}
+              onClick={() => setRunOffset(Math.max(0, runOffset - 50))}
+            >
+              Previous
+            </button>
+            <span>
+              Runs {runOffset + 1}–
+              {runOffset + Math.min(50, filteredRuns.length)}
+            </span>
+            <button
+              className="button secondary"
+              disabled={runs.data.length <= 50}
+              onClick={() => setRunOffset(runOffset + 50)}
+            >
+              Next
+            </button>
+          </div>
         )}
       </section>
 

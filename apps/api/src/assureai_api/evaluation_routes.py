@@ -235,6 +235,9 @@ def list_runs_endpoint(
     evaluation_type: Annotated[EvaluationType | None, Query()] = None,
     dataset_id: str | None = None,
     run_status: Annotated[EvaluationRunStatus | None, Query(alias="status")] = None,
+    provider_model: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[EvaluationRunResponse]:
     try:
         return [
@@ -245,6 +248,9 @@ def list_runs_endpoint(
                 evaluation_type=evaluation_type,
                 dataset_id=dataset_id,
                 status=run_status,
+                provider_model=provider_model,
+                limit=limit,
+                offset=offset,
             )
         ]
     except Exception as exc:

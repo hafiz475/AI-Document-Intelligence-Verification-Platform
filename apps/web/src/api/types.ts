@@ -372,3 +372,102 @@ export interface EvaluationComparison {
   latency_regression_percent: number;
   token_regression_percent: number;
 }
+
+export interface UsageSummary {
+  extraction_tokens: number | null;
+  rag_tokens: number | null;
+  evaluation_tokens: number | null;
+  total_tokens: number | null;
+  average_provider_latency_ms: number | null;
+  records_with_token_usage: number;
+}
+
+export interface ProviderUsage {
+  provider: string;
+  model: string;
+  operation: string;
+  requests: number;
+}
+
+export interface OverviewMetrics {
+  documents: number;
+  documents_ready: number;
+  documents_failed: number;
+  extraction_runs: number;
+  fields_awaiting_review: number;
+  verified_fields: number;
+  rag_questions: number;
+  supported_answers: number;
+  insufficient_evidence_answers: number;
+  evaluation_pass_rate: number | null;
+  average_retrieval_latency_ms: number | null;
+  average_rag_latency_ms: number | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  event_type: string;
+  target_type: string | null;
+  target_id: string | null;
+  document_id: string | null;
+  actor: string | null;
+  created_at: string;
+}
+
+export interface ProjectOverview {
+  metrics: OverviewMetrics;
+  usage: UsageSummary;
+  provider_usage: ProviderUsage[];
+  recent_activity: ActivityItem[];
+}
+
+export interface DocumentIndex {
+  items: DocumentRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ReviewQueueItem {
+  document_id: string;
+  document_name: string;
+  extraction_run_id: string;
+  provider: string;
+  model: string;
+  field: ExtractedField;
+}
+
+export interface ReviewQueue {
+  items: ReviewQueueItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ProductAuditItem {
+  id: string;
+  event_type: string;
+  actor: string | null;
+  document_id: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  request_id: string | null;
+  trace_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AuditIndex {
+  items: ProductAuditItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface DocumentReport {
+  document: DocumentRecord;
+  latest_extraction: ExtractionRun | null;
+  question_count: number;
+  supported_answer_count: number;
+  insufficient_answer_count: number;
+}

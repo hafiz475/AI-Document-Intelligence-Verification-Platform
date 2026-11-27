@@ -16,7 +16,7 @@ export function ProjectListPage() {
           <h1>Projects</h1>
           <p>Organize every document within an isolated assurance project.</p>
         </div>
-        <Link className="button" to="/projects/new">
+        <Link className="button" to="/app/projects/new">
           Create project
         </Link>
       </div>
@@ -26,7 +26,7 @@ export function ProjectListPage() {
             <Link
               className="project-card"
               key={project.id}
-              to={`/projects/${project.id}`}
+              to={`/app/projects/${project.id}/overview`}
             >
               <div>
                 <h2>{project.name}</h2>
@@ -48,7 +48,7 @@ export function ProjectListPage() {
       ) : (
         <EmptyState
           title="No projects yet"
-          detail="Create a project to begin a document ingestion workflow."
+          detail="Create a project, then upload a technical document to begin extracting and verifying information."
         />
       )}
     </section>

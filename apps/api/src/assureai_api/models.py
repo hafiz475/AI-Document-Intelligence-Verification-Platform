@@ -232,6 +232,13 @@ class EvaluationRun(Base):
     __table_args__ = (
         Index("ix_evaluation_runs_project_created", "project_id", "created_at"),
         Index("ix_evaluation_runs_dataset_created", "dataset_id", "created_at"),
+        Index(
+            "ix_evaluation_runs_project_type_status_created",
+            "project_id",
+            "evaluation_type",
+            "status",
+            "created_at",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -326,6 +333,7 @@ class Document(Base):
         UniqueConstraint("project_id", "sha256_hash", name="uq_documents_project_sha256"),
         Index("ix_documents_project_id", "project_id"),
         Index("ix_documents_sha256_hash", "sha256_hash"),
+        Index("ix_documents_project_status_created", "project_id", "status", "created_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -553,7 +561,15 @@ class PromptVersion(Base):
 
 class RagQuestion(Base):
     __tablename__ = "rag_questions"
-    __table_args__ = (Index("ix_rag_questions_project_created", "project_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_rag_questions_project_created", "project_id", "created_at"),
+        Index(
+            "ix_rag_questions_project_document_created",
+            "project_id",
+            "document_id",
+            "created_at",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     project_id: Mapped[str] = mapped_column(
@@ -628,6 +644,7 @@ class QuestionRetrievedChunk(Base):
 
 class RagAnswer(Base):
     __tablename__ = "rag_answers"
+    __table_args__ = (Index("ix_rag_answers_support_question", "support_status", "question_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     question_id: Mapped[str] = mapped_column(
@@ -716,6 +733,7 @@ class ExtractedField(Base):
     __table_args__ = (
         UniqueConstraint("extraction_run_id", "field_name", name="uq_extracted_field_run_name"),
         Index("ix_extracted_fields_document_id", "document_id"),
+        Index("ix_extracted_fields_review_updated", "review_status", "updated_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -770,7 +788,17 @@ class ExtractionEvidence(Base):
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
-    __table_args__ = (Index("ix_audit_events_project_document", "project_id", "document_id"),)
+    __table_args__ = (
+        Index("ix_audit_events_project_document", "project_id", "document_id"),
+        Index("ix_audit_events_actor_created", "actor_user_id", "created_at"),
+        Index("ix_audit_events_project_created", "project_id", "created_at"),
+        Index(
+            "ix_audit_events_project_event_created",
+            "project_id",
+            "event_type",
+            "created_at",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     project_id: Mapped[str | None] = mapped_column(

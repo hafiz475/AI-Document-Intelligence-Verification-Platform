@@ -147,10 +147,18 @@ it("renders a supported answer, multiple citations, and retrieved sources", asyn
   });
   mockResponses({ body: [supported] });
   wrapper(<RagQuestionPanel projectId="project-1" />);
-  expect((await screen.findAllByText("SUPPORTED")).length).toBeGreaterThan(0);
-  expect(screen.getByText(/8.4 mm\/s RMS, above expected/)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/8.4 mm\/s RMS, above expected/),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("SUPPORTED").length).toBeGreaterThan(0);
   expect(screen.getAllByText(/pump-inspection.txt/).length).toBeGreaterThan(0);
   expect(screen.getByText(/maintenance.txt/)).toBeInTheDocument();
+  expect(
+    screen.getAllByRole("link", { name: "Open exact source evidence" })[0],
+  ).toHaveAttribute(
+    "href",
+    "/app/projects/project-1/documents/document-1?tab=chunks#chunk-chunk-1",
+  );
   fireEvent.click(screen.getByText("Inspect all retrieved sources"));
   expect(
     screen.getAllByText("Drive-end bearing vibration measured 8.4 mm/s RMS.")
@@ -172,8 +180,13 @@ it("renders insufficient evidence without citations", async () => {
   mockResponses({ body: [insufficient] });
   wrapper(<RagQuestionPanel projectId="project-1" />);
   expect(
-    (await screen.findAllByText("INSUFFICIENT EVIDENCE")).length,
-  ).toBeGreaterThan(0);
+    await screen.findByText(
+      /available documents do not provide enough evidence/,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("INSUFFICIENT EVIDENCE").length).toBeGreaterThan(
+    0,
+  );
   expect(
     screen.getByText(/No citations were accepted because/),
   ).toBeInTheDocument();

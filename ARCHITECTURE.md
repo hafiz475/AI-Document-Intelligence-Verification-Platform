@@ -1,6 +1,6 @@
 # AssureAI architecture
 
-## Milestone 6 production-hardening boundary
+## Productization Phase 1 boundary
 
 OIDC/development sessions resolve to `User`; `ProjectMembership` applies OWNER, EDITOR,
 or VIEWER before any project route runs. Storage and secrets are provider-neutral with
@@ -11,6 +11,11 @@ security headers, bounded requests/jobs, restore tooling, and explicit retention
 form the operational boundary. The existing evidence, citation, retrieval, evaluation,
 and immutable provenance validators remain authoritative after authorization.
 
+The public landing page is separate from the authenticated `/app` workspace. Product
+dashboards, review queues, audit indexes, and reports are read models over existing
+authoritative records; Productization Phase 1 adds no database tables and no parallel
+extraction, retrieval, or RAG implementation.
+
 ## Current system
 
 AssureAI remains a modular monolith with separately runnable web, API, and worker
@@ -19,9 +24,9 @@ queued evidence-backed questions, controlled RAG generation, and citation valida
 
 ```mermaid
 flowchart TB
-    Reviewer --> Web[React / TypeScript]
-    Web -->|Project, document, extraction, review API| API[FastAPI]
-    API --> DB[(PostgreSQL)]
+    Browser[Browser] --> Web[React / TypeScript]
+    Web -->|Authenticated project API| API[FastAPI + Auth + RBAC]
+    API --> DB[(PostgreSQL + pgvector)]
     API --> Queue[(Redis broker)]
     API --> Files[(Private document storage)]
     Queue --> Worker[Dramatiq worker]
@@ -35,6 +40,9 @@ flowchart TB
     Worker -->|question embedding + scoped retrieval| DB
     Worker --> RagProvider[Deterministic or OpenAI RAG provider]
     Worker -->|validated answer + citations| DB
+    API --> Audit[Audit indexes]
+    API --> Eval[Evaluation + comparisons]
+    API --> OTel[OpenTelemetry + metrics]
 ```
 
 PostgreSQL uses the pgvector image and the Milestone 3 migration safely enables the

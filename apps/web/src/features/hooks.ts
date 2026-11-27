@@ -20,6 +20,7 @@ import {
 } from "../api/retrieval";
 import type { FieldReview } from "../api/types";
 import { createQuestion, getQuestions } from "../api/questions";
+import type { QuestionFilters } from "../api/questions";
 import type { RagQuestion } from "../api/types";
 import {
   compareEvaluationRuns,
@@ -31,6 +32,19 @@ import {
   updateEvaluationCase,
 } from "../api/evaluations";
 import type { CaseInput, DatasetInput, RunInput } from "../api/evaluations";
+import type { EvaluationRunFilters } from "../api/evaluations";
+import {
+  getAuditIndex,
+  getDocumentIndex,
+  getDocumentReport,
+  getProjectOverview,
+  getReviewQueue,
+} from "../api/product";
+import type {
+  AuditFilters,
+  DocumentFilters,
+  ReviewFilters,
+} from "../api/product";
 
 export function useProjects() {
   return useQuery({ queryKey: ["projects"], queryFn: getProjects });
@@ -124,8 +138,8 @@ export function useCreateExtraction(projectId: string, documentId: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: () => createExtraction(projectId, documentId),
-    onSuccess: () =>
-      client.invalidateQueries({
+    onSuccess: () => {
+      void client.invalidateQueries({
         queryKey: [
           "projects",
           projectId,
@@ -133,7 +147,14 @@ export function useCreateExtraction(projectId: string, documentId: string) {
           documentId,
           "extractions",
         ],
-      }),
+      });
+      void client.invalidateQueries({
+        queryKey: ["projects", projectId, "review-queue"],
+      });
+      void client.invalidateQueries({
+        queryKey: ["projects", projectId, "overview"],
+      });
+    },
   });
 }
 
@@ -149,8 +170,8 @@ export function useReviewField(projectId: string, documentId: string) {
       fieldId: string;
       review: FieldReview;
     }) => reviewField(projectId, documentId, runId, fieldId, review),
-    onSuccess: () =>
-      client.invalidateQueries({
+    onSuccess: () => {
+      void client.invalidateQueries({
         queryKey: [
           "projects",
           projectId,
@@ -158,7 +179,17 @@ export function useReviewField(projectId: string, documentId: string) {
           documentId,
           "extractions",
         ],
-      }),
+      });
+      void client.invalidateQueries({
+        queryKey: ["projects", projectId, "review-queue"],
+      });
+      void client.invalidateQueries({
+        queryKey: ["projects", projectId, "overview"],
+      });
+      void client.invalidateQueries({
+        queryKey: ["projects", projectId, "audit-events"],
+      });
+    },
   });
 }
 
@@ -211,10 +242,20 @@ export function useRetrievalEvaluations(projectId: string) {
   });
 }
 
-export function useRagQuestions(projectId: string, documentId?: string) {
+export function useRagQuestions(
+  projectId: string,
+  documentId?: string,
+  filters: QuestionFilters = {},
+) {
   return useQuery({
-    queryKey: ["projects", projectId, "questions", documentId ?? "project"],
-    queryFn: () => getQuestions(projectId, documentId),
+    queryKey: [
+      "projects",
+      projectId,
+      "questions",
+      documentId ?? "project",
+      filters,
+    ],
+    queryFn: () => getQuestions(projectId, documentId, filters),
     refetchInterval: (query) => {
       const active = query.state.data?.some((question) =>
         ["QUEUED", "PROCESSING"].includes(question.status),
@@ -286,10 +327,13 @@ export function useSaveEvaluationCase(projectId: string) {
   });
 }
 
-export function useEvaluationRuns(projectId: string) {
+export function useEvaluationRuns(
+  projectId: string,
+  filters: EvaluationRunFilters = {},
+) {
   return useQuery({
-    queryKey: ["projects", projectId, "evaluation-runs"],
-    queryFn: () => getEvaluationRuns(projectId),
+    queryKey: ["projects", projectId, "evaluation-runs", filters],
+    queryFn: () => getEvaluationRuns(projectId, filters),
     refetchInterval: (query) =>
       query.state.data?.some((run) =>
         ["QUEUED", "PROCESSING"].includes(run.status),
@@ -314,5 +358,40 @@ export function useCompareEvaluationRuns(projectId: string) {
   return useMutation({
     mutationFn: ({ runAId, runBId }: { runAId: string; runBId: string }) =>
       compareEvaluationRuns(projectId, runAId, runBId),
+  });
+}
+
+export function useProjectOverview(projectId: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "overview"],
+    queryFn: () => getProjectOverview(projectId),
+  });
+}
+
+export function useDocumentIndex(projectId: string, filters: DocumentFilters) {
+  return useQuery({
+    queryKey: ["projects", projectId, "document-index", filters],
+    queryFn: () => getDocumentIndex(projectId, filters),
+  });
+}
+
+export function useReviewQueue(projectId: string, filters: ReviewFilters) {
+  return useQuery({
+    queryKey: ["projects", projectId, "review-queue", filters],
+    queryFn: () => getReviewQueue(projectId, filters),
+  });
+}
+
+export function useAuditIndex(projectId: string, filters: AuditFilters) {
+  return useQuery({
+    queryKey: ["projects", projectId, "audit-events", filters],
+    queryFn: () => getAuditIndex(projectId, filters),
+  });
+}
+
+export function useDocumentReport(projectId: string, documentId: string) {
+  return useQuery({
+    queryKey: ["projects", projectId, "documents", documentId, "report"],
+    queryFn: () => getDocumentReport(projectId, documentId),
   });
 }

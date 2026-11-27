@@ -29,6 +29,7 @@ from assureai_api.observability import (
     operation_span,
     trace_id,
 )
+from assureai_api.product_routes import router as product_router
 from assureai_api.routes import router
 from assureai_api.scanning import create_document_scanner
 from assureai_api.schemas import HealthResponse
@@ -341,6 +342,7 @@ def create_app(
     application.include_router(router)
     application.include_router(evaluation_router)
     application.include_router(security_router)
+    application.include_router(product_router)
     return application
 
 

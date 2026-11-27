@@ -1,51 +1,58 @@
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import { DocumentDetailPage } from "./features/documents/DocumentDetailPage";
-import { CreateProjectPage } from "./features/projects/CreateProjectPage";
-import { ProjectDetailPage } from "./features/projects/ProjectDetailPage";
-import { ProjectListPage } from "./features/projects/ProjectListPage";
-import { EvaluationsPage } from "./features/evaluations/EvaluationsPage";
 import { AuthGate } from "./features/auth/AuthGate";
+import { DocumentDetailPage } from "./features/documents/DocumentDetailPage";
+import { DocumentReportPage } from "./features/documents/DocumentReportPage";
+import { EvaluationsPage } from "./features/evaluations/EvaluationsPage";
+import { LandingPage } from "./features/landing/LandingPage";
+import { AskPage } from "./features/projects/AskPage";
+import { AuditPage } from "./features/projects/AuditPage";
+import { CreateProjectPage } from "./features/projects/CreateProjectPage";
+import { DocumentsPage } from "./features/projects/DocumentsPage";
+import { OverviewPage } from "./features/projects/OverviewPage";
+import { ProjectListPage } from "./features/projects/ProjectListPage";
+import { ReviewQueuePage } from "./features/projects/ReviewQueuePage";
+import { SearchPage } from "./features/projects/SearchPage";
+import { SettingsPage } from "./features/projects/SettingsPage";
+import { AppFrame, ProjectShell } from "./features/shell/AppShell";
 
-function Layout() {
+function AuthenticatedFrame() {
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <nav aria-label="Primary navigation">
-          <Link className="brand" to="/">
-            <span aria-hidden="true">A</span>AssureAI
-          </Link>
-          <span className="milestone">Milestone 6 · Production hardening</span>
-        </nav>
-      </header>
-      <main className="container">
-        <Routes>
-          <Route element={<ProjectListPage />} path="/" />
-          <Route element={<CreateProjectPage />} path="/projects/new" />
-          <Route element={<ProjectDetailPage />} path="/projects/:projectId" />
-          <Route
-            element={<EvaluationsPage />}
-            path="/projects/:projectId/evaluations"
-          />
-          <Route
-            element={<DocumentDetailPage />}
-            path="/projects/:projectId/documents/:documentId"
-          />
-          <Route element={<Navigate replace to="/" />} path="*" />
-        </Routes>
-      </main>
-      <footer>
-        AssureAI · evidence-first document intelligence · quality is measured,
-        versioned, and reproducible
-      </footer>
-    </div>
+    <AuthGate>
+      <AppFrame />
+    </AuthGate>
   );
 }
 
 export function App() {
   return (
-    <AuthGate>
-      <Layout />
-    </AuthGate>
+    <Routes>
+      <Route element={<LandingPage />} path="/" />
+      <Route element={<AuthenticatedFrame />} path="/app">
+        <Route element={<ProjectListPage />} index />
+        <Route element={<CreateProjectPage />} path="projects/new" />
+        <Route element={<ProjectShell />} path="projects/:projectId">
+          <Route element={<Navigate replace to="overview" />} index />
+          <Route element={<OverviewPage />} path="overview" />
+          <Route element={<DocumentsPage />} path="documents" />
+          <Route
+            element={<DocumentReportPage />}
+            path="documents/:documentId/report"
+          />
+          <Route
+            element={<DocumentDetailPage />}
+            path="documents/:documentId"
+          />
+          <Route element={<SearchPage />} path="search" />
+          <Route element={<AskPage />} path="ask" />
+          <Route element={<EvaluationsPage />} path="evaluations" />
+          <Route element={<ReviewQueuePage />} path="review" />
+          <Route element={<AuditPage />} path="audit" />
+          <Route element={<SettingsPage />} path="settings" />
+        </Route>
+      </Route>
+      <Route element={<Navigate replace to="/app" />} path="/projects/*" />
+      <Route element={<Navigate replace to="/" />} path="*" />
+    </Routes>
   );
 }

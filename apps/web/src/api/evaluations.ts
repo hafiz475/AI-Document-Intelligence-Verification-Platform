@@ -81,9 +81,28 @@ export function updateEvaluationCase(
   );
 }
 
-export function getEvaluationRuns(projectId: string) {
+export interface EvaluationRunFilters {
+  evaluationType?: string;
+  status?: string;
+  providerModel?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function getEvaluationRuns(
+  projectId: string,
+  filters: EvaluationRunFilters = {},
+) {
+  const params = new URLSearchParams();
+  if (filters.evaluationType)
+    params.set("evaluation_type", filters.evaluationType);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.providerModel)
+    params.set("provider_model", filters.providerModel);
+  params.set("limit", String(filters.limit ?? 51));
+  params.set("offset", String(filters.offset ?? 0));
   return apiRequest<EvaluationRun[]>(
-    `/api/v1/projects/${projectId}/evaluation-runs`,
+    `/api/v1/projects/${projectId}/evaluation-runs?${params.toString()}`,
   );
 }
 

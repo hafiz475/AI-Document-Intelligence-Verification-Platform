@@ -1,5 +1,6 @@
 """Versioned project and document HTTP routes."""
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
@@ -19,7 +20,7 @@ from assureai_api.extraction_services import (
     list_extraction_runs,
     review_extracted_field,
 )
-from assureai_api.models import ProjectRole, RagQuestion
+from assureai_api.models import ProjectRole, RagQuestion, RagSupportStatus
 from assureai_api.observability import DOCUMENT_UPLOADS
 from assureai_api.rag_services import (
     RagUnavailableError,
@@ -721,9 +722,23 @@ def list_questions_endpoint(
     project_id: str,
     session: DbSession,
     document_id: str | None = None,
+    support_status: RagSupportStatus | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[RagQuestionResponse]:
     try:
-        questions = list_rag_questions(session, project_id, document_id=document_id)
+        questions = list_rag_questions(
+            session,
+            project_id,
+            document_id=document_id,
+            support_status=support_status,
+            created_from=created_from,
+            created_to=created_to,
+            limit=limit,
+            offset=offset,
+        )
     except NotFoundError as exc:
         raise _not_found(exc) from exc
     return [_rag_question_response(question) for question in questions]

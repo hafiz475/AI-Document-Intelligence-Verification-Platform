@@ -16,12 +16,12 @@ export function CreateProjectPage() {
       name,
       description: description || null,
     });
-    void navigate(`/projects/${project.id}`);
+    void navigate(`/app/projects/${project.id}/overview`);
   }
 
   return (
     <section className="narrow">
-      <Link className="back-link" to="/">
+      <Link className="back-link" to="/app">
         ← Projects
       </Link>
       <div className="page-heading">
@@ -53,7 +53,7 @@ export function CreateProjectPage() {
         </label>
         {create.isError && <ErrorState error={create.error} />}
         <div className="form-actions">
-          <Link className="button secondary" to="/">
+          <Link className="button secondary" to="/app">
             Cancel
           </Link>
           <button disabled={create.isPending || !name.trim()} type="submit">

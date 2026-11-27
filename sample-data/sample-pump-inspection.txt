@@ -1,13 +1,28 @@
-SYNTHETIC DEMO DATA
-ENGINEERING INSPECTION REPORT
+SYNTHETIC DEMO DATA - INDUSTRIAL EQUIPMENT INSPECTION REPORT
 
+Asset ID: P-204
 Equipment: Cooling Water Pump P-204
+Manufacturer: Northstar Process Systems
+Model: CWP-40
+Inspection date: 2026-11-20
+Location: Cooling Water Plant, Bay 2
 
-Observation:
-Drive-end bearing vibration measured 8.4 mm/s RMS.
+Operating measurement
+Drive-end bearing vibration measured 8.4 mm/s RMS during the loaded test.
+The normal operating range is below 4.5 mm/s RMS. The measurement is therefore an
+abnormal vibration condition requiring maintenance review.
 
-Expected:
-Below 4.5 mm/s RMS.
+Inspection observations
+The pump casing was intact and no external leakage was observed. Motor current remained
+stable. A light intermittent noise was present near the drive-end bearing housing.
 
-Recommended action:
-Inspect alignment and lubrication before continued service.
+Recommended maintenance
+Inspect bearing alignment and lubrication before continued service. Repeat the vibration
+measurement after maintenance and record the result in the equipment history.
+
+General plant notes
+The north access corridor was repainted last month. The weekly safety meeting remains
+scheduled for Tuesday. These notes are unrelated to the equipment condition.
+
+Inspector: Morgan Lee
+Next inspection date: 2027-02-20
